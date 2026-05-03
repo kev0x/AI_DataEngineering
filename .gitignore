@@ -1,0 +1,21 @@
+.DS_Store
+.env
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Private source data, generated data, and local warehouse files
+data/private/
+data/sample statements/
+data/bronze/
+data/silver/
+data/gold/
+data/anonymized/
+warehouse/
+
+# Local editor noise
+.idea/
+.vscode/
