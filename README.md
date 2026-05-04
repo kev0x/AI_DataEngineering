@@ -1,8 +1,8 @@
 # AI Data Engineering Lab
 
 Design-first project for learning data engineering architecture with personal Chase
-financial data. No implementation will be added until the architecture is reviewed and
-approved.
+financial data. The approved v0.1 design is now being implemented with Docker, DuckDB,
+FastAPI, and SQL-first ETL.
 
 ## Goal
 
@@ -11,18 +11,16 @@ card CSV exports, models them in DuckDB with medallion layers and a relational s
 serves safe analytics through FastAPI, and later adds a text-to-SQL AI interface over Gold
 views only.
 
-## Current Design Status
+## Current Build Status
 
-The project is in planning mode.
-
-Approval sequence:
+Approved sequence:
 
 1. Use cases - approved
 2. Acceptance criteria - approved
 3. Schema design - approved
-4. API and AI query interface
-5. Frontend design
-6. Implementation plan
+4. Warehouse deployment - in progress
+5. API and AI query interface
+6. Frontend design
 
 ## Agreed Decisions
 
@@ -113,15 +111,84 @@ Gold.vw_SpendingCategoryTrend
 
 ## Docker Direction
 
-Docker Compose will use separate services:
+Docker Compose uses separate services:
 
 ```text
-etl
+warehouse-deploy
 api
+duckdb-ui
 ```
 
-The ETL service reads private CSV files and builds DuckDB, then exits. The API service opens
-DuckDB read-only and serves FastAPI endpoints.
+The warehouse deployment service reads private CSV files, deploys DuckDB objects, runs
+chunked SQL ETL, then exits. The API opens DuckDB read-only and serves FastAPI endpoints.
+
+Build the local image:
+
+```bash
+cd Docker
+docker compose build
+```
+
+Start everything:
+
+```bash
+cd Docker
+docker compose up -d
+```
+
+This starts a one-shot warehouse deployment and population service first, then starts the
+API. Put private Chase CSV exports under:
+
+```text
+data/private/chase/
+```
+
+That folder is ignored by Git.
+
+Check the services:
+
+```bash
+cd Docker
+docker compose ps
+```
+
+Check the service:
+
+```bash
+curl http://127.0.0.1:4000/health
+```
+
+Open DuckDB UI:
+
+```text
+http://localhost:4213
+```
+
+The UI opens a separate catalog database and attaches `warehouse/finance.duckdb` as
+read-only under the alias `finance`.
+
+DuckDB UI uses its own lightweight Docker requirements file so it can run a UI-compatible
+DuckDB version while the API and ETL keep the main DuckDB runtime.
+
+The ETL is idempotent. Bronze transaction tables and `Silver.factTransaction` are loaded
+with DuckDB `MERGE` statements, using source-file hashes and source row numbers as the
+transaction grain.
+
+See warehouse objects and row counts:
+
+```bash
+curl http://127.0.0.1:4000/api/warehouse/objects
+curl http://127.0.0.1:4000/api/warehouse/row-counts
+```
+
+Docker-specific files live under:
+
+```text
+Docker/
+  Dockerfile
+  docker-compose.yml
+  requirements.txt
+```
 
 ## Data Warehouse Layout
 
@@ -132,7 +199,6 @@ DataWarehouse/
   Bronze/
     Tables/
     Views/
-    Sequences/
   Silver/
     Tables/
     Views/

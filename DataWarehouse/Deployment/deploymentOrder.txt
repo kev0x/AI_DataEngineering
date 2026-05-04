@@ -1,6 +1,4 @@
 Deployment/createSchemas.sql
-Bronze/Sequences/seqRawChaseCheckingTransactionRecordKey.sql
-Bronze/Sequences/seqRawChaseCreditTransactionRecordKey.sql
 Bronze/Tables/rawChaseCheckingTransaction.sql
 Bronze/Tables/rawChaseCreditTransaction.sql
 Silver/Tables/dimSourceFile.sql
@@ -20,4 +18,3 @@ Gold/Views/vw_MonthlyCashflow.sql
 Gold/Views/vw_TopMerchantsBySpending.sql
 Gold/Views/vw_UncategorizedTransactionSummary.sql
 Gold/Views/vw_SpendingCategoryTrend.sql
-

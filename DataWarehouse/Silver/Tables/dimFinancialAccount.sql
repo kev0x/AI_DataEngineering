@@ -1,5 +1,9 @@
+create sequence if not exists Silver.seqDimFinancialAccountKey
+start 100
+increment 100;
+
 create table if not exists Silver.dimFinancialAccount (
-    financialAccountKey integer primary key,
+    financialAccountKey integer primary key default nextval('Silver.seqDimFinancialAccountKey'),
     institutionName varchar not null default 'chase',
     accountType varchar not null,
     accountLastFour varchar not null default 'unknown',
@@ -12,4 +16,3 @@ create table if not exists Silver.dimFinancialAccount (
     check (accountType in ('checking', 'creditCard', 'unknown')),
     check (length(accountLastFour) = 4 or accountLastFour = 'unknown')
 );
-

@@ -1,21 +1,39 @@
+# OS/editor noise
 .DS_Store
+.idea/
+.vscode/
+
+# Local environment files
 .env
+.env.*
+!.env.example
+
+# Python local environment and caches
 .venv/
+venv/
 __pycache__/
 *.py[cod]
+*$py.class
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 
 # Private source data, generated data, and local warehouse files
-data/private/
-data/sample statements/
-data/bronze/
-data/silver/
-data/gold/
-data/anonymized/
+data/
 warehouse/
+*.duckdb
+*.duckdb.wal
+*.db
+*.sqlite
+*.sqlite3
 
-# Local editor noise
-.idea/
-.vscode/
+# Local Docker overrides
+docker-compose.override.yml
+Docker/docker-compose.override.yml
+
+# Logs and temporary files
+*.log
+*.tmp

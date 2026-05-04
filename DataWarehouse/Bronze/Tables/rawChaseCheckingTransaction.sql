@@ -1,3 +1,7 @@
+create sequence if not exists Bronze.seqRawChaseCheckingTransactionRecordKey
+start 100
+increment 100;
+
 create table if not exists Bronze.rawChaseCheckingTransaction (
     recordKey integer primary key default nextval('Bronze.seqRawChaseCheckingTransactionRecordKey'),
     sourceFileName varchar not null,
@@ -15,4 +19,3 @@ create table if not exists Bronze.rawChaseCheckingTransaction (
     unique (sourceFileHash, sourceRowNumber),
     check (sourceRowNumber > 0)
 );
-

@@ -1,5 +1,9 @@
+create sequence if not exists Silver.seqFactTransactionKey
+start 100
+increment 100;
+
 create table if not exists Silver.factTransaction (
-    transactionKey integer primary key,
+    transactionKey integer primary key default nextval('Silver.seqFactTransactionKey'),
     sourceFileKey integer not null default -1,
     financialAccountKey integer not null default -1,
     transactionDateKey integer not null default 19000101,
@@ -32,4 +36,3 @@ create table if not exists Silver.factTransaction (
     foreign key (spendingCategoryKey) references Silver.dimSpendingCategory(spendingCategoryKey),
     foreign key (categoryRuleKey) references Silver.mapCategoryRule(categoryRuleKey)
 );
-
