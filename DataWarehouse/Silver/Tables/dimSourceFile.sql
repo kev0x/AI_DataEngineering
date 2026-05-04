@@ -1,5 +1,9 @@
+create sequence if not exists Silver.seqDimSourceFileKey
+start 100
+increment 100;
+
 create table if not exists Silver.dimSourceFile (
-    sourceFileKey integer primary key,
+    sourceFileKey integer primary key default nextval('Silver.seqDimSourceFileKey'),
     sourceFileName varchar not null,
     sourceFileHash varchar not null,
     sourceFileType varchar not null,
@@ -12,4 +16,3 @@ create table if not exists Silver.dimSourceFile (
     check (sourceSystemName in ('chase', 'unknown')),
     check (rowCount >= 0)
 );
-

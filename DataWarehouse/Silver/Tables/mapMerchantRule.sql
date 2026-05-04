@@ -1,5 +1,9 @@
+create sequence if not exists Silver.seqMapMerchantRuleKey
+start 100
+increment 100;
+
 create table if not exists Silver.mapMerchantRule (
-    merchantRuleKey integer primary key,
+    merchantRuleKey integer primary key default nextval('Silver.seqMapMerchantRuleKey'),
     ruleName varchar not null,
     descriptionMatchType varchar not null,
     descriptionMatchText varchar not null,
@@ -13,4 +17,3 @@ create table if not exists Silver.mapMerchantRule (
     check (descriptionMatchType in ('exact', 'startsWith', 'contains')),
     foreign key (merchantKey) references Silver.dimMerchant(merchantKey)
 );
-

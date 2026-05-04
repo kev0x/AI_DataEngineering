@@ -20,13 +20,17 @@ The project should stay simple:
 ## Current Repo State
 
 The earlier mock implementation was removed after the user asked to return to design-first
-mode. The repo now intentionally contains planning files only.
+mode. The repo now contains the approved warehouse layout, Docker services, a small FastAPI
+app, DuckDB UI wiring, and SQL-first ETL.
 
 Current intended tracked files:
 
 ```text
 README.md
 .gitignore
+.dockerignore
+Docker/
+app/
 docs/project-context.md
 docs/schema-design.md
 DataWarehouse/
@@ -46,7 +50,21 @@ warehouse/
 ```
 
 Python 3.12 was installed locally through Homebrew and a `.venv` was created earlier, but
-implementation dependencies are not part of the approved design yet.
+Docker dependencies are tracked in `Docker/requirements.txt`.
+
+Current implementation direction:
+
+- `Docker/docker-compose.yml` starts the one-shot `warehouse-deploy` service first, then
+  starts `api` and `duckdb-ui`.
+- `DataWarehouse/Deployment/deployWarehouse.py` deploys schemas, tables, seeds, and views.
+- `DataWarehouse/Deployment/populateWarehouse.py` stages private Chase CSV files and runs
+  ETL SQL scripts.
+- ETL SQL files live under `DataWarehouse/ETL/`.
+- Transaction ETL is chunked by temporary queue tables.
+- Bronze and Silver transaction loads use DuckDB `MERGE` statements for idempotency.
+- Silver transformations create temporary process tables, dedupe with `row_number()`, then
+  `MERGE`.
+- Generated key defaults live in the table DDL and are backed by DuckDB sequences.
 
 ## Data Sources
 
@@ -512,4 +530,211 @@ Schema design now includes a Silver ER diagram and example fact-to-dimension joi
 docs/schema-design.md.
 Warehouse SQL is organized in DataWarehouse/ by schema and object type. Deployment uses
 DataWarehouse/Deployment/deployWarehouse.py and deploymentOrder.txt.
+Docker foundation exists with a one-shot warehouse-deploy service and an api service.
+`cd Docker && docker compose up -d` deploys the DuckDB schema and starts the API. API
+currently exposes health and warehouse object listing only; full API/query interface is
+still a future design gate.
+```
+
+Latest implementation update:
+
+```text
+Warehouse population is now wired into Docker startup.
+
+Private Chase CSVs were copied into data/private/chase/, which is ignored by Git.
+Docker/warehouse-deploy runs deployWarehouse.py with --populate and --data-root
+/app/data/private/chase. The service deploys SQL, loads Bronze, derives Silver, then
+exits successfully. The API starts after that service completes.
+
+Added DataWarehouse/Deployment/populateWarehouse.py:
+- Detects Chase checking and credit CSV shapes.
+- Loads Bronze idempotently by sourceFileHash + sourceRowNumber.
+- Upserts Silver.dimSourceFile and Silver.dimFinancialAccount.
+- Inserts calendar rows for actual transaction/post dates.
+- Creates merchant dimension/rule rows from cleaned descriptions.
+- Classifies credit card Sale/Return/Payment and checking transaction types into
+  transactionEventType and spending categories.
+- Inserts Silver.factTransaction idempotently by sourceRowIdentifier.
+
+Added API endpoint:
+- GET /api/warehouse/row-counts
+
+Verified row counts after load:
+- Bronze.rawChaseCheckingTransaction: 270
+- Bronze.rawChaseCreditTransaction: 296
+- Silver.factTransaction: 566
+- Gold.vw_MonthlySpendingByCategory: 118
+
+Rerunning the warehouse-deploy service inserted 0 new fact rows, confirming idempotency.
+```
+
+Latest code organization update:
+
+```text
+Python code has been refactored into classes with docstrings on every class and method.
+
+DataWarehouse/Deployment/populateWarehouse.py:
+- ChaseValueParser handles text cleanup, hashes, money parsing, date parsing, calendar
+  keys, and file-name account last-four extraction.
+- ChaseCsvReader discovers private CSV files, reads CSV rows, and detects supported Chase
+  source shapes.
+- TransactionClassifier maps Chase checking and credit-card rows into category/event
+  assignments.
+- WarehouseRepository owns all DuckDB writes and idempotent lookup/insert behavior.
+- WarehousePopulator orchestrates reader + repository and prints load summaries.
+
+DataWarehouse/Deployment/deployWarehouse.py:
+- WarehouseDeployer deploys SQL files and optional reset behavior.
+- DeploymentCommand owns CLI parsing and calls deploy/populate workflows.
+
+app/api.py:
+- WarehouseCatalog owns read-only DuckDB catalog queries.
+- ApiApplicationFactory creates FastAPI and registers routes.
+
+Verification after refactor:
+- Local syntax compile passed for all Python files.
+- Docker compose rebuild/recreate completed.
+- warehouse-deploy completed successfully.
+- API health endpoint returned ok.
+- row-count endpoint still returns populated warehouse counts.
+```
+
+Latest Docker/UI update:
+
+```text
+Added a DuckDB UI service to Docker Compose.
+
+Files:
+- app/duckdb_ui.py
+- Docker/docker-compose.yml
+- README.md
+
+DuckDB UI details:
+- Service name: duckdb-ui
+- Browser URL: http://localhost:4213
+- DuckDB's embedded UI server runs internally on localhost:4214.
+- The DuckDB UI service uses Docker/requirements-ui.txt with duckdb==1.4.1 because the
+  remote UI app's desired extension map currently aligns with DuckDB v1.4.1.
+- The ETL/API image continues to use Docker/requirements.txt with duckdb==1.5.2.
+- A small Python TCP proxy exposes the UI on 0.0.0.0:4213 so Docker port publishing
+  works without requiring Docker host networking.
+- The UI opens /tmp/duckdb_ui_catalog.duckdb as its writable UI catalog.
+- The finance warehouse is attached read-only as alias finance:
+  ATTACH IF NOT EXISTS '/app/warehouse/finance.duckdb' AS finance (READ_ONLY)
+
+Verification:
+- docker compose up -d --build --force-recreate succeeded.
+- docker-duckdb-ui-1 is Up and maps 0.0.0.0:4213->4213/tcp.
+- DuckDB UI logs show internal server on localhost:4214 and proxy on 0.0.0.0:4213.
+- HTTP GET to http://duckdb-ui:4213 from the api container returned 200.
+- Querying finance.Silver.factTransaction from the UI catalog returned 566 rows.
+- API health endpoint still returned ok.
+```
+
+Latest DuckDB SQL ETL simplification update:
+
+```text
+The custom Python ETL package was removed. DataWarehouse/ETL is now SQL-first.
+
+Deleted:
+- DataWarehouse/ETL/Common/*.py
+- DataWarehouse/ETL/Bronze/*.py
+- DataWarehouse/ETL/Silver/*.py
+- DataWarehouse/ETL/sourceFileEtl.py
+- DataWarehouse/ETL/warehousePopulator.py
+- DataWarehouse/ETL/**/__init__.py
+- app/__init__.py
+
+Kept Python:
+- DataWarehouse/Deployment/deployWarehouse.py
+- DataWarehouse/Deployment/populateWarehouse.py
+- app/api.py
+- app/duckdb_ui.py
+
+New ETL layout:
+- DataWarehouse/ETL/etlOrder.txt
+- DataWarehouse/ETL/Bronze/LoadRawChaseCheckingTransaction.sql
+- DataWarehouse/ETL/Bronze/LoadRawChaseCreditTransaction.sql
+- DataWarehouse/ETL/Silver/ProcessDimSourceFile.sql
+- DataWarehouse/ETL/Silver/ProcessDimFinancialAccount.sql
+- DataWarehouse/ETL/Silver/ProcessDimCalendarDate.sql
+- DataWarehouse/ETL/Silver/ProcessDimMerchant.sql
+- DataWarehouse/ETL/Silver/ProcessMapMerchantRule.sql
+- DataWarehouse/ETL/Silver/ProcessMapCategoryRule.sql
+- DataWarehouse/ETL/Silver/ProcessFactTransaction.sql
+
+Naming rule implemented:
+- Silver dimension transformations use ProcessDim<TableName>.sql.
+- Silver fact transformations use ProcessFact<TableName>.sql.
+- Mapping transformations use ProcessMap<TableName>.sql.
+
+populateWarehouse.py now:
+- Discovers private Chase CSV files case-insensitively (.csv or .CSV).
+- Computes sourceFileHash and file metadata.
+- Creates temporary DuckDB stage queue tables.
+- Loads CSV rows into queue tables with DuckDB read_csv.
+- Processes transaction rows in configurable chunks.
+- Executes SQL scripts from ETL/etlOrder.txt.
+
+Verification:
+- Python syntax compile passed.
+- docker compose up -d --build --force-recreate succeeded.
+- warehouse-deploy completed successfully.
+- Rerunning warehouse-deploy preserved row counts/idempotency.
+- API health returned ok.
+- Silver.factTransaction still has 566 rows.
+- DuckDB UI returned HTTP 200.
+```
+
+Latest chunked MERGE update:
+
+```text
+User asked for SQL transformations to look more like chunked upsert processing instead of
+plain insert transformations.
+
+Implemented:
+- populateWarehouse.py now processes transactions from staging queue tables into temporary
+  chunk tables.
+- deployWarehouse.py and populateWarehouse.py expose --stage-chunk-size.
+- Bronze transaction scripts use MERGE on sourceFileHash + sourceRowNumber.
+- Silver scripts now follow: create temp process table, dedupe, MERGE.
+- Cross-join key math was removed from the ETL SQL.
+- Generated key defaults live in table DDL and are backed by DuckDB sequences declared in
+  the owning table files.
+- Silver.factTransaction uses MERGE on sourceRowIdentifier and updates/inserts the
+  descriptive and foreign-key columns for the transaction grain.
+
+DuckDB note:
+- Updating dimension rows that are already referenced by facts can hit DuckDB foreign-key
+  limitations.
+- Silver `MERGE` statements include `WHEN MATCHED AND ...` predicates so idempotent reruns
+  do not perform unnecessary no-op updates.
+- Dimension correction workflows should be designed deliberately later instead of hidden in
+  the first-pass ingestion scripts.
+
+Verification:
+- PYTHONPYCACHEPREFIX=/private/tmp/codex-pycache python3 -m py_compile passed for the
+  deployment and app Python files.
+- docker compose up -d --build --force-recreate succeeded.
+- warehouse-deploy processed 566 source rows.
+- Silver.factTransaction row count is 566.
+- Duplicate sourceRowIdentifier count is 0.
+- transactionKey range is 100 to 56600.
+- API health returned ok at http://127.0.0.1:4000/health.
+- DuckDB UI returned HTTP 200 at http://localhost:4213.
+```
+
+Latest cleanup update:
+
+```text
+Unused cleanup:
+- Deleted stale standalone sequence SQL files from Bronze/Sequences and Silver/Sequences.
+- Deleted Deployment/fullRefresh.sql because deployWarehouse.py --reset owns full refresh.
+- Deleted docs/etl-tooling-research.md because it was a temporary research note.
+- Removed empty DataWarehouse/ETL/Common and scripts directories.
+- Removed local .DS_Store.
+
+Kept intentionally:
+- DBA scripts, because the user asked for a DBA utilities area.
+- .gitkeep files, because they preserve approved DataWarehouse folder structure.
 ```

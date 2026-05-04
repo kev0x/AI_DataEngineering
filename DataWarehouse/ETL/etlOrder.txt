@@ -1,0 +1,9 @@
+Bronze/LoadRawChaseCheckingTransaction.sql
+Bronze/LoadRawChaseCreditTransaction.sql
+Silver/ProcessDimSourceFile.sql
+Silver/ProcessDimFinancialAccount.sql
+Silver/ProcessDimCalendarDate.sql
+Silver/ProcessDimMerchant.sql
+Silver/ProcessMapMerchantRule.sql
+Silver/ProcessMapCategoryRule.sql
+Silver/ProcessFactTransaction.sql

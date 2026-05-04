@@ -1,5 +1,9 @@
+create sequence if not exists Silver.seqMapCategoryRuleKey
+start 100
+increment 100;
+
 create table if not exists Silver.mapCategoryRule (
-    categoryRuleKey integer primary key,
+    categoryRuleKey integer primary key default nextval('Silver.seqMapCategoryRuleKey'),
     ruleName varchar not null,
     sourceAccountType varchar,
     sourceCategoryName varchar,
@@ -24,4 +28,3 @@ create table if not exists Silver.mapCategoryRule (
     check (categoryAssignmentSource in ('chaseMapped', 'rule', 'fallback', 'manual', 'ai')),
     foreign key (spendingCategoryKey) references Silver.dimSpendingCategory(spendingCategoryKey)
 );
-

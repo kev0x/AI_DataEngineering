@@ -1,0 +1,66 @@
+services:
+  warehouse-deploy:
+    build:
+      context: ..
+      dockerfile: Docker/Dockerfile
+    image: ai-data-engineering:local
+    command:
+      - python
+      - DataWarehouse/Deployment/deployWarehouse.py
+      - --warehouse
+      - /app/warehouse/finance.duckdb
+      - --populate
+      - --data-root
+      - /app/data/private/chase
+    volumes:
+      - ../data/private:/app/data/private:ro
+      - ../warehouse:/app/warehouse
+
+  api:
+    build:
+      context: ..
+      dockerfile: Docker/Dockerfile
+    image: ai-data-engineering:local
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app.api:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    environment:
+      WAREHOUSE_PATH: /app/warehouse/finance.duckdb
+    ports:
+      - "4000:8000"
+    volumes:
+      - ../warehouse:/app/warehouse
+    depends_on:
+      warehouse-deploy:
+        condition: service_completed_successfully
+
+  duckdb-ui:
+    build:
+      context: ..
+      dockerfile: Docker/Dockerfile
+      args:
+        REQUIREMENTS_FILE: Docker/requirements-ui.txt
+    image: ai-data-engineering-duckdb-ui:local
+    command:
+      - python
+      - -m
+      - app.duckdb_ui
+    environment:
+      WAREHOUSE_PATH: /app/warehouse/finance.duckdb
+      DUCKDB_UI_CATALOG_PATH: /tmp/duckdb_ui_catalog.duckdb
+      DUCKDB_UI_DATABASE_ALIAS: finance
+      DUCKDB_UI_INTERNAL_PORT: "4214"
+      DUCKDB_UI_PROXY_PORT: "4213"
+    ports:
+      - "4213:4213"
+    volumes:
+      - ../warehouse:/app/warehouse
+    depends_on:
+      warehouse-deploy:
+        condition: service_completed_successfully
