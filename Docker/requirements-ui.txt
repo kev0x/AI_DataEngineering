@@ -1,1 +1,5 @@
+# Purpose: Lists Python packages for the DuckDB UI service.
+# Runtime role: Keeps the UI runtime dependency set separate from the API runtime so UI-specific DuckDB behavior can be isolated.
+# Dependencies: Consumed by the duckdb-ui service build in Docker/docker-compose.yml.
+
 duckdb==1.4.1

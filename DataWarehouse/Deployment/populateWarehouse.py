@@ -1,3 +1,15 @@
+"""Chase CSV staging and warehouse population workflow.
+
+Purpose:
+    Discovers private Chase CSV exports, profiles their source shape, stages rows into
+    temporary DuckDB queue tables, and runs ordered SQL ETL scripts.
+Pipeline role:
+    Bridges private files and modeled warehouse tables. Python handles file discovery,
+    CSV parsing, hashing, and chunk orchestration; SQL handles relational transforms.
+Dependencies:
+    DuckDB Python package, csv/hashlib/re utilities, data/private/chase/*.csv,
+    DataWarehouse/ETL/etlOrder.txt, and the Bronze/Silver objects deployed first.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -43,7 +55,12 @@ CREDIT_HEADERS = {
 
 @dataclass(frozen=True)
 class SourceFileMetadata:
-    """Metadata registered for one private Chase CSV before SQL ETL runs."""
+    """File-level lineage captured before any row-level ETL runs.
+
+    The sourceFileHash and sourceRowNumber combination is the foundation for idempotency:
+    it lets Bronze and Silver MERGE statements recognize the same CSV rows when the loader
+    is rerun.
+    """
 
     sourceFileName: str
     sourceFilePath: Path
@@ -55,7 +72,12 @@ class SourceFileMetadata:
 
 
 class SqlLiteral:
-    """Formats trusted Python values as SQL literals for DuckDB script generation."""
+    """Formats trusted Python values as SQL literals for generated DuckDB COPY/read SQL.
+
+    DuckDB parameter binding cannot be used for every identifier/path position inside the
+    read_csv calls below, so paths are escaped in one tiny helper instead of repeated
+    string manipulation throughout the loader.
+    """
 
     @staticmethod
     def string(value: str | Path) -> str:
@@ -64,7 +86,12 @@ class SqlLiteral:
 
 
 class ChaseSourceFileProfiler:
-    """Discovers Chase CSV files and collects file-level metadata for SQL ETL."""
+    """Discovers Chase CSV files and collects file-level metadata for SQL ETL.
+
+    This class is intentionally about files, not database writes. It answers: which CSVs
+    exist, which Chase format do they use, how many source rows do they contain, and what
+    account type/last-four should the warehouse attach to them?
+    """
 
     def discover_source_files(self, data_root: Path) -> list[SourceFileMetadata]:
         """Return supported Chase CSV files under the private data folder."""
@@ -135,7 +162,12 @@ class ChaseSourceFileProfiler:
 
 
 class DuckDbEtlRunner:
-    """Stages source CSVs and runs DuckDB SQL ETL scripts in manifest order."""
+    """Stages source CSVs and runs DuckDB SQL ETL scripts in manifest order.
+
+    The runner is the orchestration layer. Python owns temporary staging tables and chunk
+    movement; the SQL files own business transformations. Keeping those responsibilities
+    separate makes the pipeline easier to debug for someone learning data engineering.
+    """
 
     def __init__(
         self,
@@ -154,7 +186,15 @@ class DuckDbEtlRunner:
         self.source_file_profiler = ChaseSourceFileProfiler()
 
     def populate(self) -> None:
-        """Stage private CSV files, execute ETL SQL, and print row counts."""
+        """Stage private CSV files, execute ETL SQL, and print row counts.
+
+        High-level flow:
+        1. Discover supported Chase CSV files.
+        2. Create temporary stage/queue tables inside DuckDB.
+        3. Load file metadata and source rows into those temporary tables.
+        4. Process dimensions once, then transaction rows in repeatable chunks.
+        5. Print a summary that can be compared with DBA row-count checks.
+        """
         source_file_metadata_list = self.source_file_profiler.discover_source_files(
             self.data_root
         )
@@ -332,7 +372,12 @@ class DuckDbEtlRunner:
         self,
         duckdb_connection: duckdb.DuckDBPyConnection,
     ) -> None:
-        """Execute source-file metadata ETL scripts once before chunk processing."""
+        """Execute source-file metadata ETL scripts once before chunk processing.
+
+        Source file and financial account dimensions do not depend on individual chunk
+        temp tables. Running them once up front keeps the later chunk loop focused on
+        transaction-level Bronze/Silver work.
+        """
         for etl_sql_file_path in self.ordered_etl_sql_files():
             relative_etl_sql_file_path = str(
                 etl_sql_file_path.relative_to(self.data_warehouse_root)
@@ -346,7 +391,12 @@ class DuckDbEtlRunner:
         self,
         duckdb_connection: duckdb.DuckDBPyConnection,
     ) -> None:
-        """Process staged transaction rows in chunks until both queues are empty."""
+        """Process staged transaction rows in chunks until both queues are empty.
+
+        DuckDB can handle much larger batches, but chunking teaches the same pattern used
+        in bigger warehouses: take a stable slice from staging, transform it, merge it into
+        targets, then delete only the rows that were successfully processed.
+        """
         processed_chunk_count = 0
         while self.has_queued_transactions(duckdb_connection):
             processed_chunk_count += 1
@@ -391,7 +441,12 @@ class DuckDbEtlRunner:
         self,
         duckdb_connection: duckdb.DuckDBPyConnection,
     ) -> None:
-        """Create temp tables containing the next staged transaction chunk."""
+        """Create temp tables containing the next staged transaction chunk.
+
+        Downstream SQL scripts always read stageChaseCheckingTransaction and
+        stageChaseCreditTransaction. Recreating those temp tables each loop gives SQL a
+        simple, stable interface while Python manages the queue mechanics.
+        """
         duckdb_connection.execute("drop table if exists stageChaseCheckingTransaction")
         duckdb_connection.execute("drop table if exists stageChaseCreditTransaction")
         duckdb_connection.execute(
@@ -419,7 +474,12 @@ class DuckDbEtlRunner:
         self,
         duckdb_connection: duckdb.DuckDBPyConnection,
     ) -> None:
-        """Remove processed chunk rows from the staging queues."""
+        """Remove processed chunk rows from the staging queues.
+
+        Deletion is based on the source grain rather than row position. That matters
+        because the source grain survives reruns and makes the queue cleanup independent
+        of whatever ordering DuckDB uses internally.
+        """
         duckdb_connection.execute(
             """
             delete from stageChaseCheckingTransactionQueue as stagedTransactionQueue

@@ -1,3 +1,7 @@
+-- Purpose: Upserts merchant dimension rows from cleaned transaction descriptions.
+-- Pipeline role: Creates consistent merchant display names before facts join to Silver.dimMerchant for charts and filtering.
+-- Dependencies: staged Chase transaction temp tables, Silver.mapMerchantRule, and Silver.dimMerchant.
+
 create or replace temporary table processDimMerchant as
 with stagedMerchant as (
     select

@@ -1,3 +1,7 @@
+-- Purpose: Defines the Silver calendar date dimension used by transaction and posted date keys.
+-- Pipeline role: Gives facts deterministic YYYYMMDD date keys plus month/year attributes for filtering, grouping, and charting.
+-- Dependencies: Silver schema; populated by DataWarehouse/ETL/Silver/ProcessDimCalendarDate.sql.
+
 create table if not exists Silver.dimCalendarDate (
     calendarDateKey integer primary key,
     calendarDate date not null,
@@ -21,4 +25,3 @@ create table if not exists Silver.dimCalendarDate (
     check (calendarQuarter between 1 and 4),
     check (calendarDayOfMonth between 1 and 31)
 );
-

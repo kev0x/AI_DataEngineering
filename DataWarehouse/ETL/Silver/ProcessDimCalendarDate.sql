@@ -1,3 +1,7 @@
+-- Purpose: Upserts calendar dates needed by staged checking and credit-card transaction rows.
+-- Pipeline role: Ensures every transactionDateKey and postedDateKey used by Silver.factTransaction can join to a date dimension row.
+-- Dependencies: staged Chase transaction temp tables and Silver.dimCalendarDate.
+
 create or replace temporary table processDimCalendarDate as
 with stagedDateText as (
     select postingDate as calendarDateText

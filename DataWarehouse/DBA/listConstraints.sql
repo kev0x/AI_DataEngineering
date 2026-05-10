@@ -1,3 +1,7 @@
+-- Purpose: Lists table constraints defined in the warehouse.
+-- Pipeline role: Helps learners inspect primary keys, foreign keys, unique constraints, and default rules after deployment.
+-- Dependencies: DuckDB information_schema.table_constraints and key_column_usage views.
+
 select
     constraint_schema as schemaName,
     table_name as tableName,
@@ -10,4 +14,3 @@ order by
     table_name,
     constraint_type,
     constraint_name;
-

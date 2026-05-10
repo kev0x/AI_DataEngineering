@@ -25,6 +25,9 @@ DuckDB does not use SQLCMD `:r` includes or stored procedures for deployment thr
 Python API. `Deployment/deployWarehouse.py` reads `Deployment/deploymentOrder.txt` and
 executes the listed SQL files in order.
 
+Every executable SQL and Python file in this folder starts with a short purpose/dependency
+header so future changes are easier to orient around.
+
 Populate the warehouse from private Chase CSV files:
 
 ```bash
@@ -53,6 +56,36 @@ The loader is idempotent:
 - `Silver.factTransaction` uses `MERGE` by `sourceRowIdentifier`.
 - Rerunning the population step does not duplicate transactions.
 
+## Classification Rules
+
+Business classification is data-driven. Merchant-specific decisions should live in
+`Silver.mapCategoryRule`, not in `ProcessFactTransaction.sql`.
+
+Current rule sources:
+
+```text
+system  Seeded rules in Silver/Seeds/defaultCategoryRules.sql
+manual  User-approved rules created through POST /api/category-rules
+ai      Reserved for future AI-suggested rules
+```
+
+`Silver.factTransaction` stores both the resolved `spendingCategoryKey` and the
+`categoryRuleKey` that assigned it. That gives us traceability when a category needs to be
+corrected later.
+
+The fact ETL applies the highest-priority active matching rule by:
+
+```text
+sourceAccountType
+sourceCategoryName
+transactionType
+descriptionMatchType
+descriptionMatchText
+rulePriority
+```
+
+Parsing Chase source columns is still ETL logic. Classifying business meaning is rule data.
+
 ETL SQL scripts live under:
 
 ```text
@@ -74,3 +107,32 @@ DataWarehouse/ETL/
 `Deployment/populateWarehouse.py` is intentionally small. It discovers private CSV files,
 creates temporary DuckDB stage queues, processes staged transactions in chunks, and executes
 the SQL scripts listed in `ETL/etlOrder.txt`.
+
+DBA utilities live under:
+
+```text
+DataWarehouse/DBA/
+  dataTrustReport.sql
+  inspectDatabase.sql
+  listConstraints.sql
+  listTables.sql
+  rowCounts.sql
+  validateDataIntegrity.sql
+  validateGoldPrivacy.sql
+```
+
+Run validation through the API container:
+
+```bash
+cd Docker
+docker compose exec -T api python - <<'PY'
+from pathlib import Path
+import duckdb
+
+con = duckdb.connect('/app/warehouse/finance.duckdb', read_only=True)
+result = con.execute(Path('/app/DataWarehouse/DBA/validateDataIntegrity.sql').read_text())
+for row in result.fetchall():
+    print(row)
+con.close()
+PY
+```

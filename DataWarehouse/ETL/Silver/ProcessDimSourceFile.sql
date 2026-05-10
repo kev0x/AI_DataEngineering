@@ -1,3 +1,7 @@
+-- Purpose: Upserts source file metadata into Silver.dimSourceFile.
+-- Pipeline role: Creates the file lineage dimension that Bronze and Silver transaction rows use to prove where each row came from.
+-- Dependencies: stageSourceFileMetadata temp table and Silver.dimSourceFile.
+
 create or replace temporary table processDimSourceFile as
 with rankedSourceFile as (
     select

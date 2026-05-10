@@ -1,3 +1,7 @@
+# Purpose: Lists the SQL ETL scripts that populate Silver from staged source data in dependency order.
+# Pipeline role: Separates metadata/dimension processing from chunked transaction fact processing.
+# Dependencies: DataWarehouse/Deployment/populateWarehouse.py reads this file after temporary stage tables are loaded.
+
 Bronze/LoadRawChaseCheckingTransaction.sql
 Bronze/LoadRawChaseCreditTransaction.sql
 Silver/ProcessDimSourceFile.sql

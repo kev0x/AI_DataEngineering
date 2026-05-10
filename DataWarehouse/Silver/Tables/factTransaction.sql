@@ -1,3 +1,7 @@
+-- Purpose: Defines the Silver transaction fact at one row per source CSV transaction row.
+-- Pipeline role: Stores signed transaction amounts, event/type classification, date/account/merchant/category keys, and rule lineage for analysis.
+-- Dependencies: Silver dimensions, Silver.mapMerchantRule, Silver.mapCategoryRule, and ProcessFactTransaction.sql.
+
 create sequence if not exists Silver.seqFactTransactionKey
 start 100
 increment 100;

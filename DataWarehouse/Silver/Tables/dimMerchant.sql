@@ -1,3 +1,7 @@
+-- Purpose: Defines the Silver merchant dimension used by transaction facts and merchant spending charts.
+-- Pipeline role: Stores cleaned merchant display names derived from Chase descriptions while keeping the parsing logic traceable through rules.
+-- Dependencies: Silver schema, Silver.mapMerchantRule, and ProcessDimMerchant.sql.
+
 create sequence if not exists Silver.seqDimMerchantKey
 start 100
 increment 100;

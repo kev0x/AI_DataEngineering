@@ -1,3 +1,7 @@
+-- Purpose: Upserts account records into Silver.dimFinancialAccount from source file metadata.
+-- Pipeline role: Creates a privacy-aware account dimension using account type and last-four-only display attributes.
+-- Dependencies: stageSourceFileMetadata temp table and Silver.dimFinancialAccount.
+
 create or replace temporary table processDimFinancialAccount as
 with stagedFinancialAccount as (
     select distinct

@@ -1,3 +1,7 @@
+-- Purpose: Seeds the starter spending-category vocabulary for personal finance analytics.
+-- Pipeline role: Gives category rules and fact rows stable category keys before user-approved or AI-assisted rules are added.
+-- Dependencies: Silver.dimSpendingCategory must exist before this seed runs.
+
 insert or ignore into Silver.dimSpendingCategory (
     spendingCategoryKey,
     spendingCategoryName,
@@ -24,5 +28,5 @@ insert or ignore into Silver.dimSpendingCategory (
     (1700, 'Transfer', 'Financial', 'Transfers and account movements'),
     (1800, 'Fee', 'Financial', 'Fees'),
     (1900, 'Refund', 'Adjustment', 'Refunds and returns'),
-    (2000, 'Uncategorized', 'Uncategorized', 'Needs category review');
-
+    (2000, 'Uncategorized', 'Uncategorized', 'Needs category review'),
+    (2100, 'Investments', 'Financial', 'Investment account transfers and brokerage movements');

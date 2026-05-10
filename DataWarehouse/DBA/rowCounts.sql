@@ -1,3 +1,7 @@
+-- Purpose: Reports row counts for important warehouse objects.
+-- Pipeline role: Provides a quick sanity check after deployment or population to confirm data landed where expected.
+-- Dependencies: Bronze raw tables, Silver dimensions/facts, and Gold views.
+
 select 'Bronze.rawChaseCheckingTransaction' as objectName, count(*) as rowCount from Bronze.rawChaseCheckingTransaction
 union all
 select 'Bronze.rawChaseCreditTransaction' as objectName, count(*) as rowCount from Bronze.rawChaseCreditTransaction
@@ -18,4 +22,3 @@ select 'Silver.mapCategoryRule' as objectName, count(*) as rowCount from Silver.
 union all
 select 'Silver.factTransaction' as objectName, count(*) as rowCount from Silver.factTransaction
 order by objectName;
-

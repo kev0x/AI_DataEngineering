@@ -1,3 +1,7 @@
+-- Purpose: Loads staged Chase credit card rows into the Bronze credit transaction table.
+-- Pipeline role: Performs an idempotent MERGE from the temporary queue into Bronze using source file hash and source row number as the source grain.
+-- Dependencies: stageChaseCreditTransaction temp table, Bronze.rawChaseCreditTransaction, and populateWarehouse.py chunk orchestration.
+
 merge into Bronze.rawChaseCreditTransaction as targetTransaction
 using (
     select

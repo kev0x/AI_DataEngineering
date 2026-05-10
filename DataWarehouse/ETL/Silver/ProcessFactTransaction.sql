@@ -1,5 +1,12 @@
+-- Purpose: Builds Silver.factTransaction by parsing staged source rows and applying merchant/category rules.
+-- Pipeline role: Converts source-shaped Chase rows into the analytical fact grain with date keys, account keys, merchant keys, category keys, signed amounts, and rule lineage.
+-- Dependencies: staged Chase transaction temp tables, Bronze raw tables, Silver dimensions, Silver.mapMerchantRule, and Silver.mapCategoryRule.
+
 create or replace temporary table processFactTransaction as
 with sourceTransaction as (
+    -- Combine checking and credit-card chunks into one common shape.
+    -- At this point the data still looks like source data: dates and amounts are text,
+    -- checking has no Chase category, and credit-card rows carry Chase's source category.
     select
         sourceFileHash,
         sourceFileType,
@@ -27,6 +34,9 @@ with sourceTransaction as (
     from stageChaseCreditTransaction
 ),
 preparedTransaction as (
+    -- Normalize source text before matching rules.
+    -- sourceRowIdentifier is the durable source grain used for idempotent MERGE logic.
+    -- transactionDescriptionClean is uppercase/collapsed text so rule matching is stable.
     select
         *,
         sourceFileType || ':' || sourceFileHash || ':' || sourceRowNumber::varchar as sourceRowIdentifier,
@@ -38,6 +48,8 @@ preparedTransaction as (
     from sourceTransaction
 ),
 normalizedTransaction as (
+    -- Convert Chase amount text into a signed decimal.
+    -- Parentheses are treated as negative values, which keeps later sign/event checks simple.
     select
         *,
         case
@@ -47,34 +59,16 @@ normalizedTransaction as (
         end as transactionAmount
     from preparedTransaction
 ),
-classifiedTransaction as (
-    select
-        *,
-        case
-            when sourceAccountType = 'checking'
-             and transactionDescriptionClean like '%CHASE CREDIT CRD%' then 'CHASE CREDIT CRD'
-            when sourceAccountType = 'checking'
-             and transactionDescriptionClean like '%CHASE CREDIT CARD%' then 'CHASE CREDIT CARD'
-            when sourceAccountType = 'checking'
-             and transactionDescriptionClean like '%CREDIT CARD PAYMENT%' then 'CREDIT CARD PAYMENT'
-            when sourceAccountType = 'checking'
-             and transactionDescriptionClean like '%CREDIT CRD%' then 'CREDIT CRD'
-            when sourceAccountType = 'checking'
-             and transactionDescriptionClean like '%EPAY%' then 'EPAY'
-            else null
-        end as creditCardPaymentPattern
-    from normalizedTransaction
-),
 assignedTransaction as (
+    -- Apply broad default classification from source system facts only.
+    -- This section should stay generic: account type, Chase transaction type, and Chase
+    -- source category are acceptable here. Merchant-specific business decisions belong in
+    -- Silver.mapCategoryRule so users can inspect and override them as data.
     select
         *,
+        null::varchar as descriptionMatchType,
+        null::varchar as descriptionMatchText,
         case
-            when sourceAccountType = 'checking' and creditCardPaymentPattern is not null then 'contains'
-            else null
-        end as descriptionMatchType,
-        creditCardPaymentPattern as descriptionMatchText,
-        case
-            when sourceAccountType = 'checking' and creditCardPaymentPattern is not null then 'DebtPayment'
             when sourceAccountType = 'checking'
              and transactionType in ('ACCT_XFER', 'CHASE_TO_PARTNERFI', 'PARTNERFI_TO_CHASE') then 'Transfer'
             when sourceAccountType = 'checking'
@@ -122,7 +116,6 @@ assignedTransaction as (
             else 'Uncategorized'
         end as spendingCategoryName,
         case
-            when sourceAccountType = 'checking' and creditCardPaymentPattern is not null then 'debtPayment'
             when sourceAccountType = 'checking'
              and transactionType in ('ACCT_XFER', 'CHASE_TO_PARTNERFI', 'PARTNERFI_TO_CHASE') then 'transfer'
             when sourceAccountType = 'checking'
@@ -138,7 +131,6 @@ assignedTransaction as (
             else 'other'
         end as transactionEventType,
         case
-            when sourceAccountType = 'checking' and creditCardPaymentPattern is not null then 'rule'
             when sourceAccountType = 'checking'
              and transactionType in (
                 'ACCT_XFER',
@@ -157,9 +149,12 @@ assignedTransaction as (
             when sourceAccountType = 'creditCard' and transactionType = 'Payment' then 'rule'
             else 'fallback'
         end as categoryAssignmentSource
-    from classifiedTransaction
+    from normalizedTransaction
 ),
 assignedTransactionWithRule as (
+    -- Attach the generic category key and build the deterministic fallback rule name.
+    -- The fallback rule records why the generic assignment happened even when no explicit
+    -- seeded/manual/AI description rule matched the transaction.
     select
         assignedTransaction.*,
         coalesce(spendingCategory.spendingCategoryKey, -1) as assignedSpendingCategoryKey,
@@ -181,7 +176,40 @@ assignedTransactionWithRule as (
     left join Silver.dimSpendingCategory as spendingCategory
         on spendingCategory.spendingCategoryName = assignedTransaction.spendingCategoryName
 ),
+classificationRuleMatch as (
+    -- Find explicit category rules that match the cleaned description.
+    -- The rule with the highest priority wins; ties use the newest/largest rule key.
+    -- Rule sources can be system-seeded, manually approved by the dashboard, or future AI.
+    select
+        assignedTransactionWithRule.sourceRowIdentifier,
+        categoryRule.categoryRuleKey,
+        categoryRule.spendingCategoryKey,
+        categoryRule.transactionEventType,
+        row_number() over (
+            partition by assignedTransactionWithRule.sourceRowIdentifier
+            order by categoryRule.rulePriority desc, categoryRule.categoryRuleKey desc
+        ) as categoryRuleRank
+    from assignedTransactionWithRule
+    join Silver.mapCategoryRule as categoryRule
+        on categoryRule.isActive = true
+       and categoryRule.categoryAssignmentSource in ('rule', 'manual', 'ai')
+       and categoryRule.descriptionMatchType is not null
+       and (categoryRule.sourceAccountType is null or categoryRule.sourceAccountType = assignedTransactionWithRule.sourceAccountType)
+       and (categoryRule.sourceCategoryName is null or categoryRule.sourceCategoryName = assignedTransactionWithRule.sourceCategoryName)
+       and (categoryRule.transactionType is null or categoryRule.transactionType = assignedTransactionWithRule.transactionType)
+       and (
+            (categoryRule.descriptionMatchType = 'exact'
+                and assignedTransactionWithRule.transactionDescriptionClean = categoryRule.descriptionMatchText)
+            or (categoryRule.descriptionMatchType = 'startsWith'
+                and assignedTransactionWithRule.transactionDescriptionClean like categoryRule.descriptionMatchText || '%')
+            or (categoryRule.descriptionMatchType = 'contains'
+                and assignedTransactionWithRule.transactionDescriptionClean like '%' || categoryRule.descriptionMatchText || '%')
+       )
+),
 newFactTransaction as (
+    -- Resolve every dimension key and choose final classification.
+    -- Explicit classification rules override the generic fallback assignment. Unknown
+    -- defaults keep the fact load non-null while making unresolved joins visible.
     select
         sourceFile.sourceFileKey,
         coalesce(financialAccount.financialAccountKey, -1) as financialAccountKey,
@@ -189,8 +217,8 @@ newFactTransaction as (
         coalesce(cast(strftime(postedDate, '%Y%m%d') as integer), 19000101) as postedDateKey,
         coalesce(merchant.merchantKey, -1) as merchantKey,
         coalesce(merchantRule.merchantRuleKey, -1) as merchantRuleKey,
-        coalesce(categoryRule.spendingCategoryKey, assignedSpendingCategoryKey, -1) as spendingCategoryKey,
-        coalesce(categoryRule.categoryRuleKey, -1) as categoryRuleKey,
+        coalesce(classificationRule.spendingCategoryKey, categoryRule.spendingCategoryKey, assignedSpendingCategoryKey, -1) as spendingCategoryKey,
+        coalesce(classificationRule.categoryRuleKey, categoryRule.categoryRuleKey, -1) as categoryRuleKey,
         assignedTransactionWithRule.sourceRowNumber,
         assignedTransactionWithRule.sourceRowIdentifier,
         sha256(
@@ -204,7 +232,7 @@ newFactTransaction as (
         assignedTransactionWithRule.transactionDescriptionClean,
         assignedTransactionWithRule.sourceCategoryName,
         assignedTransactionWithRule.transactionType,
-        assignedTransactionWithRule.transactionEventType,
+        coalesce(classificationRule.transactionEventType, assignedTransactionWithRule.transactionEventType) as transactionEventType,
         assignedTransactionWithRule.transactionAmount
     from assignedTransactionWithRule
     join Silver.dimSourceFile as sourceFile
@@ -223,8 +251,14 @@ newFactTransaction as (
        and merchantRule.merchantKey = merchant.merchantKey
     left join Silver.mapCategoryRule as categoryRule
         on categoryRule.ruleName = assignedTransactionWithRule.categoryRuleName
+    left join classificationRuleMatch as classificationRule
+        on classificationRule.sourceRowIdentifier = assignedTransactionWithRule.sourceRowIdentifier
+       and classificationRule.categoryRuleRank = 1
 ),
 rankedFactTransaction as (
+    -- Defend the fact grain before MERGE.
+    -- A source row should appear once, but row_number prevents accidental duplicate source
+    -- rows from breaking the load while validation scripts still report the issue.
     select
         *,
         row_number() over (
@@ -257,6 +291,8 @@ where transactionRank = 1;
 merge into Silver.factTransaction as targetFactTransaction
 using processFactTransaction as sourceFactTransaction
 on targetFactTransaction.sourceRowIdentifier = sourceFactTransaction.sourceRowIdentifier
+-- Update only when modeled values changed. This keeps reruns idempotent and preserves
+-- modifiedDatetime as a useful signal instead of changing it on every reload.
 when matched
     and (
         targetFactTransaction.sourceFileKey <> sourceFactTransaction.sourceFileKey
@@ -292,6 +328,8 @@ when matched
         transactionEventType = sourceFactTransaction.transactionEventType,
         transactionAmount = sourceFactTransaction.transactionAmount,
         modifiedDatetime = current_timestamp
+-- Insert brand-new source rows with surrogate transactionKey handled by the table default.
+-- The sourceRowIdentifier remains the natural grain used for future reruns.
 when not matched then insert (
     sourceFileKey,
     financialAccountKey,

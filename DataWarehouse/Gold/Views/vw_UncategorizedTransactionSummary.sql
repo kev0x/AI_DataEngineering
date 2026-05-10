@@ -1,3 +1,7 @@
+-- Purpose: Creates a summary of uncategorized transactions that need review.
+-- Pipeline role: Helps the dashboard and future AI workflow identify where category rules would improve data trust most.
+-- Dependencies: Silver.factTransaction, Silver.dimSpendingCategory, Silver.dimMerchant, and Silver.dimCalendarDate.
+
 create or replace view Gold.vw_UncategorizedTransactionSummary as
 select
     d.yearMonth,
@@ -21,4 +25,3 @@ group by
     a.accountType,
     t.transactionType,
     t.transactionEventType;
-

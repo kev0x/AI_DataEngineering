@@ -1,3 +1,7 @@
+-- Purpose: Creates category trend rows for comparing spending over time.
+-- Pipeline role: Provides Gold-safe monthly category metrics for API/AI consumers that need period-by-period category movement.
+-- Dependencies: Silver.factTransaction, Silver.dimCalendarDate, and Silver.dimSpendingCategory.
+
 create or replace view Gold.vw_SpendingCategoryTrend as
 with monthly as (
     select
@@ -37,4 +41,3 @@ select
         0
     ) as monthOverMonthChangeAmount
 from monthly;
-

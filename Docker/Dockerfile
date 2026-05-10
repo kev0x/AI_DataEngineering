@@ -1,3 +1,7 @@
+# Purpose: Builds the Python image used by the API and one-shot warehouse deployment service.
+# Runtime role: Installs DuckDB/FastAPI dependencies and copies the project code needed to deploy, populate, and serve the warehouse.
+# Dependencies: Docker/requirements.txt, app/, DataWarehouse/, and the runtime environment variables set in Docker/docker-compose.yml.
+
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1

@@ -1,3 +1,7 @@
+-- Purpose: Loads staged Chase checking rows into the Bronze checking transaction table.
+-- Pipeline role: Performs an idempotent MERGE from the temporary queue into Bronze using source file hash and source row number as the source grain.
+-- Dependencies: stageChaseCheckingTransaction temp table, Bronze.rawChaseCheckingTransaction, and populateWarehouse.py chunk orchestration.
+
 merge into Bronze.rawChaseCheckingTransaction as targetTransaction
 using (
     select

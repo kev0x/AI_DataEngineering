@@ -1,3 +1,15 @@
+"""DuckDB UI launcher and reverse proxy for local warehouse inspection.
+
+Purpose:
+    Starts DuckDB UI for humans who want to inspect schemas, tables, views, and ad-hoc
+    SQL results while learning the warehouse.
+Pipeline role:
+    Opens a temporary UI catalog and attaches a copied snapshot of the finance warehouse
+    so the UI does not hold locks on the live API/ETL database file.
+Dependencies:
+    DuckDB UI extension, Python HTTP proxy classes, Uvicorn/FastAPI container runtime,
+    warehouse/finance.duckdb, and Docker/docker-compose.yml port settings.
+"""
 from __future__ import annotations
 
 from http.client import HTTPConnection, HTTPResponse
@@ -5,6 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import os
 import signal
+import shutil
 import threading
 from typing import ClassVar
 
@@ -14,6 +27,9 @@ import duckdb
 WAREHOUSE_PATH = Path(os.getenv("WAREHOUSE_PATH", "/app/warehouse/finance.duckdb"))
 UI_CATALOG_PATH = Path(
     os.getenv("DUCKDB_UI_CATALOG_PATH", "/tmp/duckdb_ui_catalog.duckdb")
+)
+UI_WAREHOUSE_SNAPSHOT_PATH = Path(
+    os.getenv("DUCKDB_UI_WAREHOUSE_SNAPSHOT_PATH", "/tmp/duckdb_ui_finance_snapshot.duckdb")
 )
 UI_DATABASE_ALIAS = os.getenv("DUCKDB_UI_DATABASE_ALIAS", "finance")
 UI_INTERNAL_PORT = int(os.getenv("DUCKDB_UI_INTERNAL_PORT", "4214"))
@@ -251,6 +267,7 @@ class DuckDbUiService:
         self,
         warehouse_path: Path,
         ui_catalog_path: Path,
+        warehouse_snapshot_path: Path,
         database_alias: str,
         ui_internal_port: int,
         ui_proxy_port: int,
@@ -258,6 +275,7 @@ class DuckDbUiService:
         """Store DuckDB paths, alias, and UI port settings."""
         self.warehouse_path = warehouse_path
         self.ui_catalog_path = ui_catalog_path
+        self.warehouse_snapshot_path = warehouse_snapshot_path
         self.database_alias = database_alias
         self.ui_internal_port = ui_internal_port
         self.ui_proxy_port = ui_proxy_port
@@ -268,6 +286,7 @@ class DuckDbUiService:
         """Attach the warehouse, start DuckDB UI, and serve the exposed proxy."""
         self.install_signal_handlers()
         self.connection = self.open_connection()
+        self.refresh_warehouse_snapshot()
         self.attach_finance_warehouse(self.connection)
         self.start_duckdb_ui_server(self.connection)
         reverse_proxy = HttpReverseProxy(
@@ -289,13 +308,20 @@ class DuckDbUiService:
         return duckdb.connect(str(self.ui_catalog_path))
 
     def attach_finance_warehouse(self, connection: duckdb.DuckDBPyConnection) -> None:
-        """Attach the finance warehouse read-only so the UI cannot mutate it."""
-        warehouse_literal = SqlLiteral.string(self.warehouse_path)
+        """Attach the finance warehouse snapshot read-only so the UI cannot mutate it."""
+        warehouse_literal = SqlLiteral.string(self.warehouse_snapshot_path)
         alias_identifier = SqlLiteral.identifier(self.database_alias)
         connection.execute(
             f"ATTACH IF NOT EXISTS {warehouse_literal} AS {alias_identifier} (READ_ONLY)"
         )
         connection.execute(f"USE {alias_identifier}")
+
+    def refresh_warehouse_snapshot(self) -> None:
+        """Copy the live warehouse to a UI-only file so browsing does not lock writes."""
+        self.warehouse_snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+        if self.warehouse_snapshot_path.exists():
+            self.warehouse_snapshot_path.unlink()
+        shutil.copy2(self.warehouse_path, self.warehouse_snapshot_path)
 
     def start_duckdb_ui_server(self, connection: duckdb.DuckDBPyConnection) -> None:
         """Start DuckDB's embedded UI server on the internal localhost port."""
@@ -333,6 +359,7 @@ def build_service_from_environment() -> DuckDbUiService:
     return DuckDbUiService(
         warehouse_path=WAREHOUSE_PATH,
         ui_catalog_path=UI_CATALOG_PATH,
+        warehouse_snapshot_path=UI_WAREHOUSE_SNAPSHOT_PATH,
         database_alias=UI_DATABASE_ALIAS,
         ui_internal_port=UI_INTERNAL_PORT,
         ui_proxy_port=UI_PROXY_PORT,

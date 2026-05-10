@@ -1,3 +1,7 @@
+-- Purpose: Defines the Silver source file dimension for file-level lineage and idempotent reloads.
+-- Pipeline role: Tracks each imported CSV by file name, file hash, source type, account type, and row count.
+-- Dependencies: Silver schema and stageSourceFileMetadata from populateWarehouse.py.
+
 create sequence if not exists Silver.seqDimSourceFileKey
 start 100
 increment 100;

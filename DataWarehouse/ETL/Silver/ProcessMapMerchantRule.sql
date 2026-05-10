@@ -1,3 +1,7 @@
+-- Purpose: Maintains data-driven merchant cleanup rules derived from observed source descriptions.
+-- Pipeline role: Adds reusable description patterns to Silver.mapMerchantRule so merchant standardization stays traceable.
+-- Dependencies: staged Chase transaction temp tables and Silver.mapMerchantRule.
+
 create or replace temporary table processMapMerchantRule as
 select
     'Auto Merchant Rule ' || substr(

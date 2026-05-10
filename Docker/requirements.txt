@@ -1,3 +1,7 @@
+# Purpose: Lists Python packages for the API and warehouse deployment image.
+# Runtime role: Installs the backend dependencies needed for DuckDB ETL, FastAPI endpoints, and Uvicorn serving.
+# Dependencies: Consumed by Docker/Dockerfile during the main image build.
+
 duckdb==1.5.2
 fastapi==0.136.1
 uvicorn[standard]==0.46.0

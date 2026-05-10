@@ -1,3 +1,7 @@
+# Purpose: Keeps generated, private, and machine-local files out of Git.
+# Pipeline role: Protects personal financial data, DuckDB database files, local virtual environments, and frontend build output from being committed.
+# Dependencies: Git ignore rules; update this when a new tool writes local-only files into the repo.
+
 # OS/editor noise
 .DS_Store
 .idea/
@@ -29,6 +33,11 @@ warehouse/
 *.db
 *.sqlite
 *.sqlite3
+
+# Frontend dependencies and build output
+Frontend/node_modules/
+Frontend/dist/
+Frontend/.vite/
 
 # Local Docker overrides
 docker-compose.override.yml

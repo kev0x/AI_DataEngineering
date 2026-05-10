@@ -1,3 +1,7 @@
+-- Purpose: Defines configurable category/event classification rules for transactions.
+-- Pipeline role: Keeps business meaning out of hardcoded ETL by letting system, manual, and future AI rules assign categories and event types.
+-- Dependencies: Silver.dimSpendingCategory and ProcessFactTransaction.sql, which applies the highest-priority active matching rule.
+
 create sequence if not exists Silver.seqMapCategoryRuleKey
 start 100
 increment 100;

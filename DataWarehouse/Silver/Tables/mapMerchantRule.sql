@@ -1,3 +1,7 @@
+-- Purpose: Defines configurable merchant-name cleanup rules for transaction descriptions.
+-- Pipeline role: Turns noisy Chase descriptions into consistent merchant display names before facts join to Silver.dimMerchant.
+-- Dependencies: Silver.dimMerchant and ProcessDimMerchant/ProcessFactTransaction SQL transforms.
+
 create sequence if not exists Silver.seqMapMerchantRuleKey
 start 100
 increment 100;

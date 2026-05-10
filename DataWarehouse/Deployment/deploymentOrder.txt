@@ -1,3 +1,7 @@
+# Purpose: Lists the SQL files that deploy the warehouse structure in dependency order.
+# Pipeline role: Acts like a simple migration manifest for DuckDB, which is easier to reason about than hidden import/include behavior.
+# Dependencies: DataWarehouse/Deployment/deployWarehouse.py reads this file line by line and executes each relative SQL path.
+
 Deployment/createSchemas.sql
 Bronze/Tables/rawChaseCheckingTransaction.sql
 Bronze/Tables/rawChaseCreditTransaction.sql
@@ -18,3 +22,4 @@ Gold/Views/vw_MonthlyCashflow.sql
 Gold/Views/vw_TopMerchantsBySpending.sql
 Gold/Views/vw_UncategorizedTransactionSummary.sql
 Gold/Views/vw_SpendingCategoryTrend.sql
+Gold/Views/vw_TransactionLedger.sql

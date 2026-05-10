@@ -1,3 +1,15 @@
+"""DuckDB warehouse deployment command.
+
+Purpose:
+    Replays the warehouse DDL manifest from a clean or existing DuckDB file so Bronze,
+    Silver, Gold, seed data, and views are created in a predictable order.
+Pipeline role:
+    Owns database structure deployment. When --populate is used, it hands off to
+    populateWarehouse.py after all schemas, tables, seeds, and views exist.
+Dependencies:
+    DuckDB Python package, DataWarehouse/Deployment/deploymentOrder.txt, SQL files listed
+    in that manifest, and optionally DataWarehouse/Deployment/populateWarehouse.py.
+"""
 from __future__ import annotations
 
 from pathlib import Path

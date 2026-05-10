@@ -1,60 +1,42 @@
+-- Purpose: Maintains generic source/type category rules discovered from Chase source fields.
+-- Pipeline role: Adds broad fallback rules while leaving merchant-specific business classification to seeded/manual/AI rules in Silver.mapCategoryRule.
+-- Dependencies: staged Chase transaction temp tables, Silver.dimSpendingCategory, and Silver.mapCategoryRule.
+
 create or replace temporary table processMapCategoryRule as
-with checkingPrepared as (
+with checkingAssignment as (
     select
         'checking' as sourceAccountType,
         null::varchar as sourceCategoryName,
         coalesce(nullif(trim(type), ''), 'unknown') as transactionType,
+        null::varchar as descriptionMatchType,
+        null::varchar as descriptionMatchText,
         case
-            when upper(regexp_replace(trim(description), '\s+', ' ', 'g')) like '%CHASE CREDIT CRD%' then 'CHASE CREDIT CRD'
-            when upper(regexp_replace(trim(description), '\s+', ' ', 'g')) like '%CHASE CREDIT CARD%' then 'CHASE CREDIT CARD'
-            when upper(regexp_replace(trim(description), '\s+', ' ', 'g')) like '%CREDIT CARD PAYMENT%' then 'CREDIT CARD PAYMENT'
-            when upper(regexp_replace(trim(description), '\s+', ' ', 'g')) like '%CREDIT CRD%' then 'CREDIT CRD'
-            when upper(regexp_replace(trim(description), '\s+', ' ', 'g')) like '%EPAY%' then 'EPAY'
-            else null
-        end as creditCardPaymentPattern
-    from stageChaseCheckingTransaction
-),
-checkingAssignment as (
-    select
-        sourceAccountType,
-        sourceCategoryName,
-        transactionType,
-        case
-            when creditCardPaymentPattern is not null then 'contains'
-            else null
-        end as descriptionMatchType,
-        creditCardPaymentPattern as descriptionMatchText,
-        case
-            when creditCardPaymentPattern is not null then 'DebtPayment'
-            when transactionType in ('ACCT_XFER', 'CHASE_TO_PARTNERFI', 'PARTNERFI_TO_CHASE') then 'Transfer'
-            when transactionType in ('ACH_CREDIT', 'MISC_CREDIT', 'QUICKPAY_CREDIT') then 'Income'
-            when transactionType = 'LOAN_PMT' then 'DebtPayment'
-            when transactionType = 'FEE_TRANSACTION' then 'Fee'
-            when transactionType = 'BILLPAY' then 'BillsAndUtilities'
-            when transactionType in ('ACH_DEBIT', 'DEBIT_CARD', 'MISC_DEBIT') then 'Uncategorized'
+            when coalesce(nullif(trim(type), ''), 'unknown') in ('ACCT_XFER', 'CHASE_TO_PARTNERFI', 'PARTNERFI_TO_CHASE') then 'Transfer'
+            when coalesce(nullif(trim(type), ''), 'unknown') in ('ACH_CREDIT', 'MISC_CREDIT', 'QUICKPAY_CREDIT') then 'Income'
+            when coalesce(nullif(trim(type), ''), 'unknown') = 'LOAN_PMT' then 'DebtPayment'
+            when coalesce(nullif(trim(type), ''), 'unknown') = 'FEE_TRANSACTION' then 'Fee'
+            when coalesce(nullif(trim(type), ''), 'unknown') = 'BILLPAY' then 'BillsAndUtilities'
+            when coalesce(nullif(trim(type), ''), 'unknown') in ('ACH_DEBIT', 'DEBIT_CARD', 'MISC_DEBIT') then 'Uncategorized'
             else 'Uncategorized'
         end as spendingCategoryName,
         case
-            when creditCardPaymentPattern is not null then 'debtPayment'
-            when transactionType in ('ACCT_XFER', 'CHASE_TO_PARTNERFI', 'PARTNERFI_TO_CHASE') then 'transfer'
-            when transactionType in ('ACH_CREDIT', 'MISC_CREDIT', 'QUICKPAY_CREDIT') then 'income'
-            when transactionType = 'LOAN_PMT' then 'debtPayment'
-            when transactionType = 'FEE_TRANSACTION' then 'fee'
-            when transactionType = 'BILLPAY' then 'purchase'
-            when transactionType in ('ACH_DEBIT', 'DEBIT_CARD', 'MISC_DEBIT') then 'purchase'
+            when coalesce(nullif(trim(type), ''), 'unknown') in ('ACCT_XFER', 'CHASE_TO_PARTNERFI', 'PARTNERFI_TO_CHASE') then 'transfer'
+            when coalesce(nullif(trim(type), ''), 'unknown') in ('ACH_CREDIT', 'MISC_CREDIT', 'QUICKPAY_CREDIT') then 'income'
+            when coalesce(nullif(trim(type), ''), 'unknown') = 'LOAN_PMT' then 'debtPayment'
+            when coalesce(nullif(trim(type), ''), 'unknown') = 'FEE_TRANSACTION' then 'fee'
+            when coalesce(nullif(trim(type), ''), 'unknown') = 'BILLPAY' then 'purchase'
+            when coalesce(nullif(trim(type), ''), 'unknown') in ('ACH_DEBIT', 'DEBIT_CARD', 'MISC_DEBIT') then 'purchase'
             else 'other'
         end as transactionEventType,
         case
-            when creditCardPaymentPattern is not null then 'rule'
-            when transactionType in ('ACCT_XFER', 'CHASE_TO_PARTNERFI', 'PARTNERFI_TO_CHASE') then 'rule'
-            when transactionType in ('ACH_CREDIT', 'MISC_CREDIT', 'QUICKPAY_CREDIT') then 'rule'
-            when transactionType in ('LOAN_PMT', 'FEE_TRANSACTION', 'BILLPAY') then 'rule'
+            when coalesce(nullif(trim(type), ''), 'unknown') in ('ACCT_XFER', 'CHASE_TO_PARTNERFI', 'PARTNERFI_TO_CHASE') then 'rule'
+            when coalesce(nullif(trim(type), ''), 'unknown') in ('ACH_CREDIT', 'MISC_CREDIT', 'QUICKPAY_CREDIT') then 'rule'
+            when coalesce(nullif(trim(type), ''), 'unknown') in ('LOAN_PMT', 'FEE_TRANSACTION', 'BILLPAY') then 'rule'
             else 'fallback'
         end as categoryAssignmentSource,
         case
-            when creditCardPaymentPattern is not null then 90
-            when transactionType = 'BILLPAY' then 70
-            when transactionType in (
+            when coalesce(nullif(trim(type), ''), 'unknown') = 'BILLPAY' then 70
+            when coalesce(nullif(trim(type), ''), 'unknown') in (
                 'ACCT_XFER',
                 'CHASE_TO_PARTNERFI',
                 'PARTNERFI_TO_CHASE',
@@ -66,7 +48,7 @@ checkingAssignment as (
             ) then 80
             else 0
         end as rulePriority
-    from checkingPrepared
+    from stageChaseCheckingTransaction
 ),
 creditAssignment as (
     select

@@ -1,3 +1,7 @@
+# Purpose: Defines the local development runtime for the full project.
+# Runtime role: Starts warehouse deployment/population, FastAPI, React/Vite, and DuckDB UI from one docker compose command.
+# Dependencies: Docker/Dockerfile, Docker/requirements*.txt, DataWarehouse/, app/, Frontend/, data/private/, and warehouse/.
+
 services:
   warehouse-deploy:
     build:
@@ -40,6 +44,20 @@ services:
       warehouse-deploy:
         condition: service_completed_successfully
 
+  web:
+    image: node:22-alpine
+    working_dir: /app/Frontend
+    command:
+      - sh
+      - -c
+      - npm install && npm run dev -- --host 0.0.0.0 --port 5173
+    environment:
+      VITE_API_BASE_URL: http://localhost:4000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../Frontend:/app/Frontend
+
   duckdb-ui:
     build:
       context: ..
@@ -54,6 +72,7 @@ services:
     environment:
       WAREHOUSE_PATH: /app/warehouse/finance.duckdb
       DUCKDB_UI_CATALOG_PATH: /tmp/duckdb_ui_catalog.duckdb
+      DUCKDB_UI_WAREHOUSE_SNAPSHOT_PATH: /tmp/duckdb_ui_finance_snapshot.duckdb
       DUCKDB_UI_DATABASE_ALIAS: finance
       DUCKDB_UI_INTERNAL_PORT: "4214"
       DUCKDB_UI_PROXY_PORT: "4213"

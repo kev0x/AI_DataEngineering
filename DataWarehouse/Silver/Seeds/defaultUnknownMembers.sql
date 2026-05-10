@@ -1,3 +1,7 @@
+-- Purpose: Seeds default Unknown members used when a required dimension value is missing.
+-- Pipeline role: Keeps fact foreign keys non-null while making unresolved data obvious through -1 or 19000101 defaults.
+-- Dependencies: Silver dimension and map tables must exist before this seed runs.
+
 insert or ignore into Silver.dimSourceFile (
     sourceFileKey,
     sourceFileName,
@@ -101,4 +105,3 @@ insert or ignore into Silver.mapCategoryRule (
     'fallback',
     0
 );
-

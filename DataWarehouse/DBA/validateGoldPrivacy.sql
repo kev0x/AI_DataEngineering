@@ -1,3 +1,7 @@
+-- Purpose: Checks Gold views for blocked private/raw column names.
+-- Pipeline role: Protects the API and future AI query surface by ensuring Gold stays safe for browser and text-to-SQL access.
+-- Dependencies: DuckDB information_schema.columns and the Gold schema.
+
 with gold_columns as (
     select
         table_name as viewName,
@@ -24,4 +28,3 @@ join blocked_patterns as b
 order by
     g.viewName,
     g.columnName;
-

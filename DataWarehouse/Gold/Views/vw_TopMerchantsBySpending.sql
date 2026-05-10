@@ -1,3 +1,7 @@
+-- Purpose: Creates ranked merchant spending metrics for the dashboard.
+-- Pipeline role: Aggregates purchase/refund activity by merchant while keeping private raw descriptions out of Gold.
+-- Dependencies: Silver.factTransaction and Silver.dimMerchant.
+
 create or replace view Gold.vw_TopMerchantsBySpending as
 select
     m.merchantDisplayName,
@@ -23,4 +27,3 @@ group by
     a.accountType,
     c.parentSpendingCategoryName,
     c.spendingCategoryName;
-

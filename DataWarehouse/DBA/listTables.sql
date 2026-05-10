@@ -1,3 +1,7 @@
+-- Purpose: Lists warehouse tables and views by schema.
+-- Pipeline role: Gives a quick inventory of Bronze, Silver, and Gold objects for debugging or learning the model.
+-- Dependencies: DuckDB information_schema.tables.
+
 select
     table_schema as schemaName,
     table_name as objectName,
@@ -8,4 +12,3 @@ order by
     table_schema,
     table_type,
     table_name;
-

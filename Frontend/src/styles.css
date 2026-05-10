@@ -1,0 +1,1024 @@
+/**
+ * Purpose: Defines the visual system for the React finance dashboard.
+ * Runtime role: Controls layout, responsive grids, cards, charts, forms, buttons, status messages, and table styling without putting visual rules in JSX.
+ * Dependencies: Class names emitted by Frontend/src/App.jsx and Frontend/src/components/*.jsx.
+ */
+
+:root {
+  --accent-blue: #2563eb;
+  --accent-green: #16a34a;
+  --accent-mint: #14b8a6;
+  --accent-orange: #f97316;
+  --border-color: #dbe4df;
+  --border-strong: #b7c7bd;
+  --panel-background: rgba(255, 255, 255, 0.92);
+  --soft-background: #f3f8f4;
+  --text-color: #11231c;
+  --muted-text: #637369;
+  --deep-surface: #0f261f;
+  color: var(--text-color);
+  background: #f5f8f3;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background-color: #f5f8f3;
+  background-image:
+    linear-gradient(135deg, rgba(20, 184, 166, 0.08) 0 1px, transparent 1px),
+    linear-gradient(45deg, rgba(249, 115, 22, 0.06) 0 1px, transparent 1px),
+    linear-gradient(180deg, #fbfdf9 0%, #eef7f1 45%, #f7f2e8 100%);
+  background-size: 32px 32px, 32px 32px, auto;
+}
+
+button,
+select,
+input,
+textarea,
+a {
+  font: inherit;
+}
+
+button,
+a {
+  align-items: center;
+  background: linear-gradient(135deg, #1f7a4d, #147d82);
+  border: 1px solid rgba(17, 87, 76, 0.7);
+  border-radius: 6px;
+  box-shadow: 0 10px 24px rgba(20, 125, 130, 0.16);
+  color: white;
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 750;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 14px;
+  text-decoration: none;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+button:hover,
+a:hover {
+  background: linear-gradient(135deg, #16653f, #106b71);
+  border-color: rgba(14, 95, 78, 0.9);
+  box-shadow: 0 12px 28px rgba(20, 125, 130, 0.22);
+  transform: translateY(-1px);
+}
+
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.22);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  background: #d9e1dd;
+  border-color: #d9e1dd;
+  box-shadow: none;
+  color: #7b8981;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.secondaryButton {
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(163, 181, 171, 0.85);
+  box-shadow: none;
+  color: #19362d;
+}
+
+.secondaryButton:hover {
+  background: white;
+  border-color: var(--border-strong);
+  box-shadow: 0 8px 20px rgba(32, 48, 40, 0.08);
+}
+
+.applicationShell {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0 auto;
+  max-width: 1460px;
+  padding: 26px;
+}
+
+.topBar,
+.filterBar,
+.panel,
+.metricCard {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.topBar {
+  align-items: center;
+  background:
+    linear-gradient(135deg, rgba(12, 42, 32, 0.98), rgba(12, 63, 70, 0.97) 54%, rgba(36, 72, 41, 0.96)),
+    #10251f;
+  border-color: rgba(32, 86, 70, 0.8);
+  box-shadow: 0 24px 55px rgba(12, 42, 32, 0.26);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: 22px;
+  position: relative;
+}
+
+.topBar::after {
+  background-image:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.13) 0 1px, transparent 1px),
+    linear-gradient(60deg, rgba(20, 184, 166, 0.18) 0 1px, transparent 1px);
+  background-size: 42px 42px;
+  content: "";
+  inset: 0;
+  opacity: 0.38;
+  pointer-events: none;
+  position: absolute;
+}
+
+.topBar > * {
+  position: relative;
+  z-index: 1;
+}
+
+.brandLockup {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  min-width: 0;
+}
+
+.trellisMark {
+  background:
+    linear-gradient(135deg, rgba(20, 184, 166, 0.32), rgba(249, 115, 22, 0.26)),
+    rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  display: inline-grid;
+  flex: 0 0 auto;
+  height: 54px;
+  overflow: hidden;
+  place-items: center;
+  width: 54px;
+}
+
+.trellisMark span {
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0 2px, transparent 2px),
+    linear-gradient(45deg, rgba(255, 255, 255, 0.52) 0 2px, transparent 2px);
+  background-size: 14px 14px;
+  display: block;
+  height: 34px;
+  transform: rotate(3deg);
+  width: 34px;
+}
+
+.eyebrow {
+  color: #9ee8d2;
+  font-size: 0.78rem;
+  font-weight: 800;
+  margin: 0 0 5px;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  color: white;
+  font-size: 1.7rem;
+  line-height: 1.12;
+}
+
+h2 {
+  color: #10251f;
+  font-size: 1rem;
+}
+
+.heroCopy {
+  color: rgba(237, 253, 247, 0.78);
+  font-size: 0.92rem;
+  line-height: 1.45;
+  margin-top: 8px;
+  max-width: 650px;
+}
+
+.topBarActions,
+.buttonRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.topBarActions {
+  justify-content: flex-end;
+}
+
+.columnPanel {
+  align-items: center;
+  background: #f6faf7;
+  border: 1px solid #dfe8e2;
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px;
+}
+
+.checkboxLabel {
+  align-items: center;
+  color: #263f35;
+  flex-direction: row;
+  font-size: 0.86rem;
+  font-weight: 700;
+  gap: 6px;
+}
+
+.checkboxLabel input {
+  min-height: auto;
+}
+
+.filterBar {
+  background: var(--panel-background);
+  box-shadow: 0 12px 30px rgba(32, 48, 40, 0.08);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  padding: 14px;
+}
+
+.searchField {
+  grid-column: span 2;
+}
+
+label {
+  color: #586a5f;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.78rem;
+  font-weight: 800;
+  gap: 6px;
+}
+
+select,
+input,
+textarea {
+  background: white;
+  border: 1px solid #cbd9d1;
+  border-radius: 6px;
+  color: #132820;
+  min-height: 38px;
+  padding: 8px 10px;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+select:hover,
+input:hover,
+textarea:hover {
+  border-color: #9db5a7;
+}
+
+textarea {
+  line-height: 1.45;
+  min-height: 112px;
+  resize: vertical;
+}
+
+.metricGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.insightGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.metricCard {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 251, 248, 0.94)),
+    white;
+  box-shadow: 0 15px 35px rgba(34, 55, 43, 0.09);
+  overflow: hidden;
+  padding: 16px;
+  position: relative;
+}
+
+.metricCard::after {
+  background-image:
+    linear-gradient(135deg, rgba(17, 35, 28, 0.05) 0 1px, transparent 1px),
+    linear-gradient(45deg, rgba(17, 35, 28, 0.04) 0 1px, transparent 1px);
+  background-size: 24px 24px;
+  content: "";
+  inset: 0;
+  opacity: 0.5;
+  pointer-events: none;
+  position: absolute;
+}
+
+.metricCard > * {
+  position: relative;
+  z-index: 1;
+}
+
+.metricAccent {
+  border-radius: 999px;
+  display: block;
+  height: 5px;
+  margin-bottom: 14px;
+  width: 54px;
+}
+
+.metricCard-spending .metricAccent {
+  background: linear-gradient(90deg, var(--accent-orange), #facc15);
+}
+
+.metricCard-income .metricAccent {
+  background: linear-gradient(90deg, var(--accent-green), var(--accent-mint));
+}
+
+.metricCard-netcashflow .metricAccent {
+  background: linear-gradient(90deg, var(--accent-blue), var(--accent-mint));
+}
+
+.metricCard-uncategorized .metricAccent {
+  background: linear-gradient(90deg, #64748b, var(--accent-orange));
+}
+
+.metricCard p,
+.panelHeader span,
+.metricCard span:not(.metricAccent) {
+  color: var(--muted-text);
+  font-size: 0.82rem;
+}
+
+.metricCard p {
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.metricCard strong {
+  color: #10251f;
+  display: block;
+  font-size: 1.55rem;
+  line-height: 1.12;
+  margin: 8px 0;
+}
+
+.insightCard {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 251, 247, 0.74)),
+    white;
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--accent-mint);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(32, 48, 40, 0.07);
+  padding: 13px 14px;
+}
+
+.insightCard span {
+  color: var(--muted-text);
+  display: block;
+  font-size: 0.74rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.insightCard strong {
+  color: #10251f;
+  display: block;
+  font-size: 1.25rem;
+  line-height: 1.1;
+  margin: 7px 0 5px;
+}
+
+.insightCard p {
+  color: #52645a;
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.insightMint {
+  border-left-color: var(--accent-mint);
+}
+
+.insightOrange {
+  border-left-color: var(--accent-orange);
+}
+
+.insightBlue {
+  border-left-color: var(--accent-blue);
+}
+
+.insightGreen {
+  border-left-color: var(--accent-green);
+}
+
+.mainGrid,
+.secondaryGrid,
+.tertiaryGrid {
+  display: grid;
+  gap: 18px;
+}
+
+.mainGrid {
+  grid-template-columns: 1fr;
+}
+
+.secondaryGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tertiaryGrid {
+  grid-template-columns: minmax(320px, 0.8fr);
+}
+
+.panel {
+  background: var(--panel-background);
+  box-shadow: 0 16px 40px rgba(32, 48, 40, 0.09);
+  padding: 16px;
+}
+
+.panelHeader {
+  align-items: center;
+  border-bottom: 1px solid rgba(219, 228, 223, 0.8);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+}
+
+.panelHeader span {
+  font-weight: 700;
+  margin-left: auto;
+}
+
+.panelHeader .buttonRow {
+  margin-left: 0;
+}
+
+.cashflowChart {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chartLegend {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chartLegend span {
+  align-items: center;
+  color: #52645a;
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 800;
+  gap: 6px;
+}
+
+.chartLegend span::before {
+  border-radius: 999px;
+  content: "";
+  display: inline-block;
+  height: 8px;
+  width: 8px;
+}
+
+.legendIncome::before {
+  background: var(--accent-green);
+}
+
+.legendOutflow::before {
+  background: var(--accent-orange);
+}
+
+.legendNet::before {
+  background: var(--accent-blue);
+}
+
+.cashflowRow {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 70px minmax(180px, 1fr) 120px;
+}
+
+.chartLabel {
+  color: #3f5147;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.cashflowBars {
+  display: grid;
+  gap: 5px;
+}
+
+.cashflowBar {
+  border-radius: 999px;
+  display: block;
+  height: 9px;
+  min-width: 12px;
+  width: var(--bar-width);
+}
+
+.incomeBar {
+  background: linear-gradient(90deg, #86efac, var(--accent-green));
+}
+
+.outflowBar {
+  background: linear-gradient(90deg, #fed7aa, var(--accent-orange));
+}
+
+.netBar.amountPositive {
+  background: linear-gradient(90deg, #bfdbfe, var(--accent-blue));
+}
+
+.netBar.amountNegative {
+  background: linear-gradient(90deg, #fef3c7, #d97706);
+}
+
+.cashflowRow strong {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.barChartList {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.barChartRow {
+  display: grid;
+  gap: 7px;
+}
+
+.barChartHeader {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.barChartHeader span {
+  color: #33483d;
+  font-size: 0.88rem;
+  font-weight: 760;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barChartHeader strong {
+  color: #b45309;
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+.barTrack {
+  background: #e8f0eb;
+  border-radius: 999px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.barFill {
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  min-width: 10px;
+  width: var(--bar-width);
+}
+
+.orangeBar {
+  background: linear-gradient(90deg, #fed7aa, var(--accent-orange));
+}
+
+.blueBar {
+  background: linear-gradient(90deg, #bfdbfe, var(--accent-blue));
+}
+
+.accountMixLayout {
+  align-items: center;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 170px minmax(0, 1fr);
+}
+
+.donutChart {
+  align-items: center;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(17, 35, 28, 0.08);
+  display: grid;
+  height: 150px;
+  justify-items: center;
+  position: relative;
+  width: 150px;
+}
+
+.donutChart::after {
+  background: white;
+  border-radius: 999px;
+  content: "";
+  height: 86px;
+  position: absolute;
+  width: 86px;
+}
+
+.donutChart span {
+  color: #10251f;
+  font-size: 1.28rem;
+  font-weight: 900;
+  position: relative;
+  z-index: 1;
+}
+
+.accountLegend {
+  display: grid;
+  gap: 12px;
+}
+
+.accountLegendRow {
+  align-items: center;
+  background: #f8fbf7;
+  border: 1px solid #e2ebe5;
+  border-radius: 6px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto 1fr;
+  padding: 10px 12px;
+}
+
+.legendDot {
+  border-radius: 999px;
+  display: inline-block;
+  height: 11px;
+  width: 11px;
+}
+
+.legendDot.checking {
+  background: var(--accent-mint);
+}
+
+.legendDot.creditCard {
+  background: var(--accent-orange);
+}
+
+.accountLegendRow strong {
+  color: #10251f;
+  display: block;
+  font-size: 0.88rem;
+}
+
+.accountLegendRow p {
+  color: var(--muted-text);
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+
+.categoryReviewLayout {
+  display: grid;
+  gap: 12px;
+}
+
+.categoryRuleStatus {
+  background: rgba(20, 184, 166, 0.08);
+  border: 1px solid rgba(20, 184, 166, 0.18);
+  border-radius: 6px;
+  color: #31584f;
+  font-size: 0.86rem;
+  padding: 10px 12px;
+}
+
+.categoryRuleGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.categoryRuleCard {
+  background: #f8fbf7;
+  border: 1px solid #e2ebe5;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.categoryRuleSummary {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.categoryRuleSummary strong {
+  color: #10251f;
+  display: -webkit-box;
+  font-size: 0.92rem;
+  line-height: 1.3;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.categoryRuleSummary span {
+  color: var(--muted-text);
+  display: block;
+  font-size: 0.78rem;
+  margin-top: 4px;
+}
+
+.confidenceBadge {
+  background: white;
+  border: 1px solid #dbe4df;
+  border-radius: 999px;
+  color: #31584f;
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 850;
+  margin-top: 0;
+  padding: 5px 8px;
+}
+
+.rulePreview {
+  align-items: center;
+  background: white;
+  border: 1px solid #e2ebe5;
+  border-radius: 6px;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+}
+
+.rulePreview span {
+  color: var(--muted-text);
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.rulePreview code {
+  color: #10251f;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 850;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.emptyPanelMessage {
+  align-items: center;
+  background: #f8fbf7;
+  border: 1px dashed #b6c7bc;
+  border-radius: 8px;
+  color: #66776d;
+  display: flex;
+  min-height: 120px;
+  padding: 16px;
+}
+
+.dataList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dataListRow {
+  align-items: center;
+  background: #f8fbf7;
+  border: 1px solid #e2ebe5;
+  border-radius: 6px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 10px 12px;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.dataListRow:hover {
+  background: white;
+  border-color: #cbd9d1;
+  transform: translateY(-1px);
+}
+
+.dataListRow span {
+  color: #3f5147;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dataListRow strong {
+  white-space: nowrap;
+}
+
+.panelNote {
+  background: rgba(20, 184, 166, 0.08);
+  border: 1px solid rgba(20, 184, 166, 0.18);
+  border-radius: 6px;
+  color: #31584f;
+  font-size: 0.86rem;
+  margin-top: 12px;
+  padding: 10px 12px;
+}
+
+.transactionsPanel {
+  overflow: hidden;
+}
+
+.tableScroller {
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  min-width: 860px;
+  width: 100%;
+}
+
+th,
+td {
+  border-bottom: 1px solid #e2ebe5;
+  padding: 12px 10px;
+  text-align: left;
+}
+
+th {
+  background: rgba(248, 251, 247, 0.96);
+  color: #52645a;
+  font-size: 0.76rem;
+  font-weight: 850;
+  position: sticky;
+  text-transform: uppercase;
+  top: 0;
+  z-index: 1;
+}
+
+td {
+  color: #223b31;
+  font-size: 0.9rem;
+}
+
+.transactionRow {
+  transition: background 140ms ease;
+}
+
+.transactionRow:hover {
+  background: rgba(20, 184, 166, 0.06);
+}
+
+.transactionRow.event-purchase td:first-child {
+  box-shadow: inset 3px 0 0 rgba(249, 115, 22, 0.8);
+}
+
+.transactionRow.event-income td:first-child {
+  box-shadow: inset 3px 0 0 rgba(22, 163, 74, 0.8);
+}
+
+.transactionRow.event-refund td:first-child {
+  box-shadow: inset 3px 0 0 rgba(37, 99, 235, 0.8);
+}
+
+.transactionRow.event-fee td:first-child {
+  box-shadow: inset 3px 0 0 rgba(100, 116, 139, 0.8);
+}
+
+.amountPositive {
+  color: #11763b;
+  font-weight: 850;
+}
+
+.amountNegative {
+  color: #b45309;
+  font-weight: 850;
+}
+
+.amountNeutral {
+  color: #52645a;
+  font-weight: 800;
+}
+
+.emptyTableCell {
+  color: #637369;
+  padding: 28px 12px;
+  text-align: center;
+}
+
+@media (max-width: 1020px) {
+  .topBar,
+  .panelHeader {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .topBarActions {
+    justify-content: flex-start;
+  }
+
+  .filterBar,
+  .metricGrid,
+  .insightGrid,
+  .mainGrid,
+  .secondaryGrid,
+  .tertiaryGrid,
+  .categoryRuleGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .searchField {
+    grid-column: auto;
+  }
+
+  .cashflowRow {
+    grid-template-columns: 60px minmax(150px, 1fr);
+  }
+
+  .cashflowRow strong {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 640px) {
+  .applicationShell {
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .brandLockup {
+    align-items: flex-start;
+  }
+
+  .trellisMark {
+    height: 44px;
+    width: 44px;
+  }
+
+  h1 {
+    font-size: 1.35rem;
+  }
+
+  .heroCopy {
+    font-size: 0.86rem;
+  }
+
+  .buttonRow,
+  .topBarActions {
+    width: 100%;
+  }
+
+  .buttonRow button,
+  .topBarActions button,
+  .topBarActions a {
+    flex: 1 1 auto;
+  }
+
+  .accountMixLayout {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .accountLegend {
+    width: 100%;
+  }
+}

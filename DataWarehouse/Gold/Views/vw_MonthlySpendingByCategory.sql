@@ -1,3 +1,7 @@
+-- Purpose: Creates monthly spending totals by category for dashboard charts.
+-- Pipeline role: Aggregates purchases minus refunds by month and category while excluding payments, debt payments, transfers, and income.
+-- Dependencies: Silver.factTransaction, Silver.dimCalendarDate, and Silver.dimSpendingCategory.
+
 create or replace view Gold.vw_MonthlySpendingByCategory as
 select
     d.yearMonth,
@@ -25,4 +29,3 @@ group by
     a.accountType,
     c.parentSpendingCategoryName,
     c.spendingCategoryName;
-

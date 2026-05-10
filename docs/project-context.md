@@ -6,8 +6,8 @@ conversation context is lost.
 ## Project Goal
 
 Build a small, Dockerized, local-first data engineering project for personal Chase financial
-data. The purpose is to learn architecture, schema design, ETL, DuckDB, FastAPI, and later
-AI text-to-SQL over safe analytical views.
+data. The purpose is to learn architecture, schema design, ETL, DuckDB, FastAPI, React,
+and later AI text-to-SQL over safe analytical views.
 
 The project should stay simple:
 
@@ -20,8 +20,9 @@ The project should stay simple:
 ## Current Repo State
 
 The earlier mock implementation was removed after the user asked to return to design-first
-mode. The repo now contains the approved warehouse layout, Docker services, a small FastAPI
-app, DuckDB UI wiring, and SQL-first ETL.
+mode. The repo now contains the approved warehouse layout, Docker services, a FastAPI app,
+DuckDB UI wiring, SQL-first ETL, data trust DBA checks, rule-driven classification, and a
+modular React dashboard.
 
 Current intended tracked files:
 
@@ -30,6 +31,7 @@ README.md
 .gitignore
 .dockerignore
 Docker/
+Frontend/
 app/
 docs/project-context.md
 docs/schema-design.md
@@ -56,6 +58,7 @@ Current implementation direction:
 
 - `Docker/docker-compose.yml` starts the one-shot `warehouse-deploy` service first, then
   starts `api` and `duckdb-ui`.
+- `Frontend/` contains the React + Vite dashboard with components and domain modules.
 - `DataWarehouse/Deployment/deployWarehouse.py` deploys schemas, tables, seeds, and views.
 - `DataWarehouse/Deployment/populateWarehouse.py` stages private Chase CSV files and runs
   ETL SQL scripts.
@@ -65,6 +68,8 @@ Current implementation direction:
 - Silver transformations create temporary process tables, dedupe with `row_number()`, then
   `MERGE`.
 - Generated key defaults live in the table DDL and are backed by DuckDB sequences.
+- Business classification belongs in `Silver.mapCategoryRule`; ETL source parsing should
+  not grow merchant-specific hardcoded category logic.
 
 ## Data Sources
 
@@ -737,4 +742,163 @@ Unused cleanup:
 Kept intentionally:
 - DBA scripts, because the user asked for a DBA utilities area.
 - .gitkeep files, because they preserve approved DataWarehouse folder structure.
+```
+
+Latest frontend architecture update:
+
+```text
+Decision:
+- Use React + Vite for the frontend.
+- Keep FastAPI as the backend API.
+- Do not add Django or Flask.
+
+Implemented:
+- Added Frontend/ as the owner folder for all browser UI files.
+- Added a small one-page dashboard scaffold:
+  - top action bar
+  - account/date/category/search filters
+  - metric cards
+  - cashflow trend panel
+  - ask-your-data panel
+  - category and merchant panels
+  - transactions table shell
+- Added Frontend/src/api/warehouseApi.js for calls to FastAPI.
+- Added Frontend/src/controllers/dashboardController.js.
+- Added Frontend/src/mockData/dashboardMockData.js.
+- Added CORS middleware to app/api.py for local Vite origins.
+- Added a Docker `web` service using node:22-alpine on localhost:5173.
+- Added `/api/dashboard` to FastAPI so the UI can read safe Gold-view data.
+- Updated README.md with the architecture diagram showing React, FastAPI, DuckDB UI,
+  warehouse deployment, medallion layers, and future AI/MCP.
+
+Deferred:
+- Real chart library.
+- AI text-to-SQL execution.
+```
+
+Latest dashboard metric correction:
+
+```text
+User noticed dashboard numbers looked wrong.
+
+Root cause:
+- Gold.vw_MonthlyCashflow previously treated every positive transaction amount as inflow.
+- That counted credit card payment postings, refunds, and transfers as income.
+
+Correction:
+- incomeAmount now only uses transactionEventType = 'income'.
+- grossPurchaseAmount only uses transactionEventType = 'purchase'.
+- refundAmount only uses transactionEventType = 'refund'.
+- feeAmount only uses transactionEventType = 'fee'.
+- internalPaymentAmount, debtPaymentAmount, and netTransferAmount are exposed separately.
+- inflowAmount is now an alias for incomeAmount.
+- outflowAmount is purchase minus refund plus fee.
+- netCashflowAmount is incomeAmount - outflowAmount.
+
+Verified current dashboard API summary:
+- Spending: $14,544.63
+- Income: $10,492.97
+- Net Cashflow: -$4,066.66
+- Uncategorized: 211
+```
+
+Latest dashboard filter update:
+
+```text
+User noticed the dashboard buttons did not filter anything.
+
+Implemented:
+- Added Gold.vw_TransactionLedger as a safe transaction-level view for the React UI.
+- Added transactionRows to /api/dashboard.
+- React dashboard now uses transactionRows for client-side filtering.
+- Account, date range, category, and search filters now update:
+  - metric cards
+  - monthly cashflow list
+  - spending by category list
+  - top merchants list
+  - transaction table
+- Transactions Filter button toggles the filter bar.
+- Columns button toggles table column checkboxes.
+- Export button downloads the currently filtered and visible transaction table as CSV.
+
+Privacy:
+- Gold.vw_TransactionLedger does not expose raw Chase descriptions, memo, balance,
+  account last four, check/slip number, or source file names.
+
+Verification:
+- Frontend production build passed.
+- Warehouse deployment added Gold.vw_TransactionLedger.
+- /api/dashboard returns 566 transactionRows.
+- Gold.vw_TransactionLedger count is 566.
+```
+
+Latest data integrity verification:
+
+```text
+Ran live integrity checks against warehouse/finance.duckdb through the app container.
+
+Passed checks:
+- Bronze checking + credit row count reconciles to Silver.factTransaction.
+- Silver.factTransaction reconciles to Gold.vw_TransactionLedger.
+- Bronze source grains have no duplicates.
+- Silver fact source grains have no duplicates.
+- Silver fact required columns have no nulls.
+- Silver fact core dimension keys are resolved.
+- Silver fact foreign-key joins are complete.
+- Transaction event sign rules hold.
+- Transaction event types are valid.
+- Debt/payment events are excluded from Gold spending.
+- Gold spending reconciles to Silver purchase minus refund.
+- Gold cashflow reconciles to Silver income, purchase, refund, and fee events.
+- Gold views do not expose blocked private/raw columns.
+- Dashboard API returns live warehouse data.
+- Dashboard API returns 566 transaction rows.
+- Dashboard API summary matches corrected totals.
+
+Added repeatable DBA script:
+- DataWarehouse/DBA/validateDataIntegrity.sql
+
+Running the DBA script returned 0 failure rows.
+```
+
+Latest rule-driven classification and frontend cleanup update:
+
+```text
+User flagged that merchant-specific category logic should be rules, not hardcoded ETL.
+
+Implemented:
+- Moved Robinhood, Capital One, Amazon Synchrony, outgoing Zelle, and Chase card-payment
+  decisions into Silver/Seeds/defaultCategoryRules.sql.
+- ProcessFactTransaction.sql now applies the highest-priority active matching
+  Silver.mapCategoryRule row.
+- ProcessMapCategoryRule.sql now creates generic source/type rules only.
+- Old auto-generated description rules are deactivated by the default category rule seed.
+
+Current trusted classification examples:
+- Robinhood -> Investments / transfer
+- Capital One mobile payment -> DebtPayment / debtPayment
+- Amazon Corp SYF payment -> DebtPayment / debtPayment
+- Zelle payment to... -> Personal / purchase
+
+User then asked to simplify App.jsx.
+
+Implemented:
+- App.jsx reduced from 1157 lines to about 254 lines.
+- Frontend/src/components owns JSX presentation components.
+- Frontend/src/domain owns object-oriented service/helper classes:
+  - TransactionAnalytics
+  - TransactionFilter
+  - CategoryRuleSuggestionService
+  - CsvExporter
+  - DateRange
+- Frontend production build passed after the split.
+
+User then asked for source headers and documentation updates.
+
+Implemented:
+- Added purpose/dependency headers to Python, SQL, JS/JSX, CSS, HTML, Docker, Compose,
+  requirements, and deployment manifest files that support comments.
+- JSON files were not given comments because JSON does not support comments.
+- Updated README.md, DataWarehouse/README.md, Frontend/README.md, docs/schema-design.md,
+  and this context file with the current architecture.
 ```

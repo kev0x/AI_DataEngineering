@@ -1,3 +1,7 @@
+-- Purpose: Defines the Silver financial account dimension for checking and credit-card sources.
+-- Pipeline role: Lets facts join to account type/display attributes without exposing full account identifiers.
+-- Dependencies: Silver schema and source file metadata staged by populateWarehouse.py.
+
 create sequence if not exists Silver.seqDimFinancialAccountKey
 start 100
 increment 100;
