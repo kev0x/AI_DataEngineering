@@ -11,6 +11,12 @@ This folder owns all browser UI files. The dashboard stays intentionally one pag
 - suggested category rule review cards
 - transactions table with column controls and CSV export
 
+The page wireframe and component responsibility map are documented in:
+
+```text
+../docs/ui-wireframe.md
+```
+
 Important folders:
 
 ```text
@@ -58,6 +64,17 @@ http://localhost:5173
 
 The `web` service can start without the API. If FastAPI or DuckDB is down, the dashboard
 controller falls back to `src/mockData/dashboardMockData.js`.
+
+Component ownership summary:
+
+```text
+App.jsx                 page state and composition
+components/             visual sections and controls
+controllers/            API orchestration and mock fallback
+domain/                 filtering, analytics, suggestions, dates, formatting, export
+api/                    FastAPI request helpers
+mockData/               dashboard-shaped fallback payload
+```
 
 Production build check:
 

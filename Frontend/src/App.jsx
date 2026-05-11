@@ -41,6 +41,7 @@ function App() {
   const [isColumnPanelVisible, setIsColumnPanelVisible] = useState(false);
   const [isFilterBarVisible, setIsFilterBarVisible] = useState(true);
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
+  const [approvedSuggestionKeys, setApprovedSuggestionKeys] = useState(new Set());
   const [selectedSuggestedCategories, setSelectedSuggestedCategories] = useState({});
   const [visibleColumnKeys, setVisibleColumnKeys] = useState(
     defaultTransactionColumnVisibility(),
@@ -114,7 +115,10 @@ function App() {
     CategoryRuleSuggestionService.suggestionsFromTransactions(
       filteredTransactionRows,
       dashboardModel.spendingCategories,
+    ).filter((categoryRuleSuggestion) =>
+      !approvedSuggestionKeys.has(categoryRuleSuggestion.suggestionKey),
     ), [
+    approvedSuggestionKeys,
     dashboardModel.spendingCategories,
     filteredTransactionRows,
   ]);
@@ -137,8 +141,22 @@ function App() {
       spendingCategoryName,
     })
       .then((approvalResponse) => {
+        if (approvalResponse.updatedTransactionCount > 0) {
+          setApprovedSuggestionKeys((currentSuggestionKeys) => {
+            const nextSuggestionKeys = new Set(currentSuggestionKeys);
+            nextSuggestionKeys.add(categoryRuleSuggestion.suggestionKey);
+            return nextSuggestionKeys;
+          });
+          setSelectedSuggestedCategories((currentSelections) => {
+            const nextSelections = { ...currentSelections };
+            delete nextSelections[categoryRuleSuggestion.suggestionKey];
+            return nextSelections;
+          });
+        }
         setCategoryRuleStatusMessage(
-          `Rule approved. Updated ${approvalResponse.updatedTransactionCount} transactions.`,
+          approvalResponse.updatedTransactionCount > 0
+            ? `Rule approved. Updated ${approvalResponse.updatedTransactionCount} transactions.`
+            : "Rule saved, but no current transactions matched it.",
         );
         loadDashboard();
       })

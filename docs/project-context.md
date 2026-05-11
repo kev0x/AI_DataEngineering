@@ -902,3 +902,63 @@ Implemented:
 - Updated README.md, DataWarehouse/README.md, Frontend/README.md, docs/schema-design.md,
   and this context file with the current architecture.
 ```
+
+Latest v0.1 documentation checkpoint:
+
+```text
+User said the data looks ok and asked to update docs with a UI wireframe plus what each
+component does.
+
+Implemented:
+- Added docs/ui-wireframe.md.
+- The wireframe documents the current one-page dashboard:
+  - DashboardHeader
+  - DashboardFilterBar
+  - MetricGrid
+  - InsightGrid
+  - CashflowChart
+  - category and merchant BarChartList panels
+  - AccountMixChart
+  - CategoryRuleReview
+  - TransactionTable
+- The wireframe maps each UI component to its file, responsibility, inputs, and callbacks.
+- The wireframe also documents frontend domain/controller modules and data flow from
+  FastAPI to App.jsx to filtered rows to chart/table components.
+- README.md now marks the project as a usable v0.1 checkpoint and links to the wireframe.
+- Frontend/README.md links to the wireframe and summarizes component ownership.
+```
+
+Latest FastAPI modularization checkpoint:
+
+```text
+User approved splitting the 800+ line app/api.py file after asking whether libraries
+could reduce the amount of hand-written API code.
+
+Decision:
+- Keep FastAPI, DuckDB, and Pydantic.
+- Do not introduce a heavy ORM/framework yet.
+- Refactor the API into small files instead of changing the architecture.
+
+Implemented:
+- app/api.py is now a small FastAPI app factory and route wiring file.
+- app/database.py owns DuckDB connection handling and SQL-file loading.
+- app/models.py owns Pydantic request models.
+- app/routes/warehouseRoutes.py owns health, object listing, and row-count endpoints.
+- app/routes/dashboardRoutes.py owns dashboard and spending-category read endpoints.
+- app/routes/categoryRuleRoutes.py owns the category-rule approval endpoint.
+- app/services/warehouseService.py owns metadata payloads.
+- app/services/dashboardService.py owns Gold-view dashboard payloads.
+- app/services/categoryRuleService.py owns rule validation, upsert, matching, and fact
+  updates.
+- app/sql/dashboard, app/sql/warehouse, and app/sql/categoryRules hold query text by
+  feature so SQL is easier to inspect without scrolling through Python.
+
+Verification:
+- Python compile passed with PYTHONPYCACHEPREFIX pointed at /private/tmp.
+- Docker API image rebuilt successfully.
+- /health returned ok and warehouseExists true.
+- /api/dashboard returned 566 transaction rows, 4 summary metrics, and 10 monthly
+  cashflow rows.
+- /api/spending-categories returned 20 active selectable categories.
+- /api/warehouse/row-counts returned 16 warehouse objects.
+```

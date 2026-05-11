@@ -13,16 +13,30 @@ later adds a text-to-SQL AI interface over Gold views only.
 
 ## Current Build Status
 
+The project is at a usable v0.1 checkpoint. The current focus is to keep the data trusted,
+document the architecture, and package the learning path before adding AI/MCP features.
+
 Current sequence:
 
 1. Use cases - approved
 2. Acceptance criteria - approved
 3. Schema design - approved
 4. Warehouse deployment - implemented
-5. FastAPI read and rule-approval API - implemented
+5. FastAPI read and rule-approval API - implemented and modularized
 6. React dashboard - implemented and modularized
 7. Data trust checks - implemented as DBA scripts
 8. AI query interface / MCP - future design step
+
+V0.1 working slice:
+
+```text
+Chase CSV files
+-> Bronze source-shaped tables
+-> Silver star schema and rule tables
+-> Gold safe analytics views
+-> FastAPI endpoints
+-> React dashboard
+```
 
 ## Agreed Decisions
 
@@ -75,6 +89,17 @@ Backend responsibilities:
 - keep dashboard reads on safe Gold views
 - write approved category rules to Silver rule tables
 - expose Gold views to future AI/MCP tools
+
+Backend code layout:
+
+```text
+app/api.py               FastAPI app factory and route wiring.
+app/database.py          DuckDB connection helper and SQL-file loader.
+app/models.py            Pydantic request models.
+app/routes/              FastAPI route groups by feature.
+app/services/            Dashboard, warehouse metadata, and category-rule logic.
+app/sql/                 SQL files grouped by API feature.
+```
 
 Rule classification responsibilities:
 
@@ -226,6 +251,10 @@ DuckDB UI uses its own lightweight Docker requirements file so it can run a UI-c
 DuckDB version while the API and ETL keep the main DuckDB runtime.
 
 ## Frontend Direction
+
+The dashboard wireframe and component map live here:
+
+- [UI Wireframe And Component Map](docs/ui-wireframe.md)
 
 All React frontend files live under:
 

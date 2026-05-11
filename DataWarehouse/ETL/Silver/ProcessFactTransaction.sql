@@ -44,6 +44,12 @@ preparedTransaction as (
         try_strptime(nullif(trim(postedDateText), ''), '%m/%d/%Y')::date as postedDate,
         regexp_replace(trim(description), '\s+', ' ', 'g') as transactionDescription,
         upper(regexp_replace(trim(description), '\s+', ' ', 'g')) as transactionDescriptionClean,
+        regexp_replace(
+            trim(regexp_replace(upper(coalesce(description, '')), '[^A-Z0-9]+', ' ', 'g')),
+            '\s+',
+            ' ',
+            'g'
+        ) as transactionRuleMatchText,
         replace(replace(replace(trim(transactionAmountText), '$', ''), ',', ''), ' ', '') as transactionAmountClean
     from sourceTransaction
 ),
@@ -176,6 +182,23 @@ assignedTransactionWithRule as (
     left join Silver.dimSpendingCategory as spendingCategory
         on spendingCategory.spendingCategoryName = assignedTransaction.spendingCategoryName
 ),
+activeClassificationRule as (
+    -- Normalize rule match text the same way transaction descriptions are normalized.
+    -- This lets a human-approved rule like CHICK FIL GA match source strings that contain
+    -- punctuation, store numbers, phone numbers, or dates between the important words.
+    select
+        categoryRule.*,
+        regexp_replace(
+            trim(regexp_replace(upper(coalesce(categoryRule.descriptionMatchText, '')), '[^A-Z0-9]+', ' ', 'g')),
+            '\s+',
+            ' ',
+            'g'
+        ) as descriptionRuleMatchText
+    from Silver.mapCategoryRule as categoryRule
+    where categoryRule.isActive = true
+      and categoryRule.categoryAssignmentSource in ('rule', 'manual', 'ai')
+      and categoryRule.descriptionMatchType is not null
+),
 classificationRuleMatch as (
     -- Find explicit category rules that match the cleaned description.
     -- The rule with the highest priority wins; ties use the newest/largest rule key.
@@ -190,20 +213,27 @@ classificationRuleMatch as (
             order by categoryRule.rulePriority desc, categoryRule.categoryRuleKey desc
         ) as categoryRuleRank
     from assignedTransactionWithRule
-    join Silver.mapCategoryRule as categoryRule
-        on categoryRule.isActive = true
-       and categoryRule.categoryAssignmentSource in ('rule', 'manual', 'ai')
-       and categoryRule.descriptionMatchType is not null
-       and (categoryRule.sourceAccountType is null or categoryRule.sourceAccountType = assignedTransactionWithRule.sourceAccountType)
+    join activeClassificationRule as categoryRule
+        on (categoryRule.sourceAccountType is null or categoryRule.sourceAccountType = assignedTransactionWithRule.sourceAccountType)
        and (categoryRule.sourceCategoryName is null or categoryRule.sourceCategoryName = assignedTransactionWithRule.sourceCategoryName)
        and (categoryRule.transactionType is null or categoryRule.transactionType = assignedTransactionWithRule.transactionType)
        and (
             (categoryRule.descriptionMatchType = 'exact'
-                and assignedTransactionWithRule.transactionDescriptionClean = categoryRule.descriptionMatchText)
+                and assignedTransactionWithRule.transactionRuleMatchText = categoryRule.descriptionRuleMatchText)
             or (categoryRule.descriptionMatchType = 'startsWith'
-                and assignedTransactionWithRule.transactionDescriptionClean like categoryRule.descriptionMatchText || '%')
+                and assignedTransactionWithRule.transactionRuleMatchText like categoryRule.descriptionRuleMatchText || '%')
             or (categoryRule.descriptionMatchType = 'contains'
-                and assignedTransactionWithRule.transactionDescriptionClean like '%' || categoryRule.descriptionMatchText || '%')
+                and exists (
+                    select 1
+                    from unnest(string_split(categoryRule.descriptionRuleMatchText, ' ')) as ruleToken(token)
+                    where length(ruleToken.token) > 1
+                )
+                and not exists (
+                    select 1
+                    from unnest(string_split(categoryRule.descriptionRuleMatchText, ' ')) as ruleToken(token)
+                    where length(ruleToken.token) > 1
+                      and assignedTransactionWithRule.transactionRuleMatchText not like '%' || ruleToken.token || '%'
+                ))
        )
 ),
 newFactTransaction as (
